@@ -1,0 +1,21 @@
+name: ごみ前日リマインド
+
+on:
+  schedule:
+    - cron: "0 11 * * *"   # 毎日 11:00 UTC = 20:00 JST（前日の夜）
+  workflow_dispatch:        # 手動実行（テスト用）
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: 翌日のごみを通知
+        env:
+          DISTRICT: ${{ secrets.DISTRICT }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_SERVER: ${{ secrets.NTFY_SERVER }}
+        run: node notify.js
