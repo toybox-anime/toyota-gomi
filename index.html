@@ -281,14 +281,20 @@ function dictCatInfo(cat){
   const e=DICT_EXTRA[cat]; const lk=(LANG==="en"||LANG==="pt")?LANG:"ja";
   return { icon:e.icon, color:e.color, label:e[lk] };
 }
+// カタカナ→ひらがな・小文字化・記号除去で表記ゆれに強くする
+function fold(s){
+  return (s||"").toLowerCase().replace(/[ァ-ヶ]/g, c=>String.fromCharCode(c.charCodeAt(0)-0x60))
+    .replace(/[\s・･、,\.]/g,"");
+}
 function renderDict(q){
-  const box=$("#dictResults"); q=(q||"").trim(); const ql=q.toLowerCase();
+  const box=$("#dictResults"); q=(q||"").trim();
   if(!q){ box.innerHTML=""; return; }
+  const fq=fold(q);
   const lk=(LANG==="en"||LANG==="pt")?LANG:"ja";
-  const hits=DICT.filter(it=>
-    it.ja.includes(q) || (it.yomi&&it.yomi.includes(q)) ||
-    it.en.toLowerCase().includes(ql) || it.pt.toLowerCase().includes(ql)
-  ).slice(0,25);
+  const hits=DICT.filter(it=>{
+    const fields=[it.ja,it.yomi,it.en,it.pt, ...(typeof SYNONYMS!=="undefined"&&SYNONYMS[it.ja]||[])];
+    return fields.some(f=>f && fold(f).includes(fq));
+  }).slice(0,25);
   if(!hits.length){ box.innerHTML=`<div class="dnote" style="padding:10px 0">${T().dictNone}</div>`; return; }
   box.innerHTML = hits.map(it=>{
     const c=dictCatInfo(it.cat);

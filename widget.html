@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ごみ収集日ウィジェット</title>
+<style>
+  /* 埋め込み用ウィジェット：市の既存サイトにiframeで設置 */
+  :root{ --bg:#fff; --ink:#1b2230; --sub:#68727f; --line:#e6eaee; --brand:#2f9e6e; }
+  @media(prefers-color-scheme:dark){:root{--bg:#161a21;--ink:#e8eaf0;--sub:#9aa1b0;--line:#2a2f3a;}}
+  html,body{margin:0;background:transparent}
+  *{box-sizing:border-box}
+  .w{font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:14px;
+    padding:14px 16px;max-width:420px;line-height:1.5}
+  .hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .hd .t{font-weight:700;font-size:14px}
+  .hd .b{margin-left:auto;font-size:11px;color:var(--sub);text-decoration:none}
+  select{width:100%;padding:9px 10px;font-size:14px;border:1px solid var(--line);border-radius:9px;
+    background:var(--bg);color:var(--ink);margin-bottom:10px}
+  .today{background:var(--brand);color:#fff;border-radius:10px;padding:10px 12px;margin-bottom:10px}
+  .today .l{font-size:11px;opacity:.85;font-weight:700;letter-spacing:.04em}
+  .today .v{font-size:15px;font-weight:700;margin-top:2px}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .row:last-child{border:none}
+  .cat{display:flex;align-items:center;gap:8px;font-weight:600}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .nx{color:var(--sub);font-size:12.5px}
+  .ft{margin-top:8px;font-size:10.5px;color:var(--sub);text-align:right}
+  a{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="w" id="w">
+  <div class="hd"><span id="logo">🗑️</span><span class="t" id="title"></span>
+    <a class="b" id="open" href="#" target="_blank" rel="noopener">くわしく ↗</a></div>
+  <select id="sel" style="display:none"></select>
+  <div class="today" id="today"></div>
+  <div id="list"></div>
+  <div class="ft" id="ft"></div>
+</div>
+
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const P=new URLSearchParams(location.search);
+const LANG=P.get("lang")||CONFIG.defaultLang;
+const T=I18N[LANG];
+if(P.get("color")) document.documentElement.style.setProperty("--brand",P.get("color"));
+if(P.get("theme")) document.documentElement.style.setProperty("color-scheme",P.get("theme"));
+
+$("#logo").textContent=CONFIG.logo;
+$("#title").textContent=(P.get("title")||CONFIG.cityShort+" "+T.appName);
+const appUrl=P.get("app")||"index.html";
+$("#open").href=appUrl; $("#open").textContent=(LANG==="ja"?"くわしく ↗":"more ↗");
+
+const WD=T.wd;
+const nthWeek=d=>Math.floor((d.getDate()-1)/7)+1;
+const on=(s,d)=>{if(!s)return false;const w=d.getDay();if(s.weekly)return s.weekly.includes(w);if(s.monthly)return s.monthly.day===w&&s.monthly.week===nthWeek(d);return false;};
+function nextDate(s,f){const d=new Date(f);d.setHours(0,0,0,0);for(let i=0;i<62;i++){if(on(s,d))return{date:new Date(d),days:i};d.setDate(d.getDate()+1);}return null;}
+
+// 対象自治区の決定：?id / ?name 指定なら固定、無ければセレクタ表示
+function pick(){
+  const byId=P.get("id"), byName=P.get("name");
+  let d = byId&&DISTRICTS.find(x=>x.id===byId) || byName&&DISTRICTS.find(x=>x.name===byName);
+  const fixed=!!d;
+  if(!fixed){
+    const sel=$("#sel"); sel.style.display="block";
+    const areas=[...new Set(DISTRICTS.map(x=>x.area))];
+    areas.forEach(a=>{ const g=document.createElement("optgroup"); g.label=a;
+      DISTRICTS.filter(x=>x.area===a).forEach(x=>{const o=document.createElement("option");o.value=x.id;o.textContent=x.name;g.appendChild(o);}); sel.appendChild(g); });
+    sel.value=localStorage.getItem("w_d")||DISTRICTS[0].id;
+    sel.onchange=()=>{localStorage.setItem("w_d",sel.value);render(DISTRICTS.find(x=>x.id===sel.value));};
+    d=DISTRICTS.find(x=>x.id===sel.value)||DISTRICTS[0];
+  }
+  return d;
+}
+
+function render(d){
+  const cats=Object.keys(CATEGORIES);
+  const today=new Date();today.setHours(0,0,0,0);
+  const tds=cats.filter(k=>on(d.schedule[k],today));
+  $("#today").innerHTML=`<div class="l">${T.today.toUpperCase()} ${today.getMonth()+1}/${today.getDate()}（${WD[today.getDay()]}）</div>`+
+    `<div class="v">${tds.length?tds.map(k=>CATEGORIES[k].icon+T.cats[k]).join("、"):T.none}</div>`;
+  // 近い順に上位を表示
+  const ups=cats.map(k=>({k,nx:nextDate(d.schedule[k],today)})).filter(x=>x.nx).sort((a,b)=>a.nx.days-b.nx.days);
+  $("#list").innerHTML=ups.map(({k,nx})=>{
+    const c=CATEGORIES[k];
+    const lab=nx.days===0?T.today:nx.days===1?T.tomorrow:`${nx.date.getMonth()+1}/${nx.date.getDate()}（${WD[nx.date.getDay()]}）`;
+    return `<div class="row"><div class="cat"><span class="dot" style="background:${c.color}"></span>${c.icon} ${T.cats[k]}</div><div class="nx">${T.next} ${lab}</div></div>`;
+  }).join("");
+  $("#ft").textContent=`${d.area} ${d.name}`;
+  postHeight();
+}
+
+// 親ページへ高さ通知（iframe自動リサイズ用）
+function postHeight(){ try{ parent.postMessage({gomiWidget:true,height:document.body.scrollHeight},"*"); }catch(e){} }
+window.addEventListener("load",postHeight);
+
+render(pick());
+</script>
+</body>
+</html>
