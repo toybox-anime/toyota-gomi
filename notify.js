@@ -36,12 +36,11 @@ if (process.env.TEST_DATE) {
   t = new Date(tomo.getUTCFullYear(), tomo.getUTCMonth(), tomo.getUTCDate());
 }
 
+// 補助機能（任意）: DISTRICT/NTFY_TOPIC 未設定なら何もせず正常終了（製品の主通知はカレンダー購読）
 const names = (process.env.DISTRICT || "").split(",").map(s => s.trim()).filter(Boolean);
-if (!names.length) { console.error("DISTRICT 未設定"); process.exit(1); }
-
 const topic = process.env.NTFY_TOPIC;
 const server = process.env.NTFY_SERVER || "https://ntfy.sh";
-if (!topic) { console.error("NTFY_TOPIC 未設定"); process.exit(1); }
+if (!names.length || !topic) { console.log("ntfy通知は未設定のためスキップ（任意機能）"); process.exit(0); }
 
 const lines = [];
 for (const nm of names) {
