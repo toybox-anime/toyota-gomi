@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ごみ収集日ガイド ｜ データ管理</title>
+<style>
+  :root{ --bg:#eef1f4; --card:#fff; --ink:#1b2230; --sub:#657084; --line:#dbe0e7;
+    --brand:#1f7a5c; --brand-d:#14614a; --warn:#b5701a; --danger:#c0453a; }
+  @media(prefers-color-scheme:dark){:root{--bg:#0f131a;--card:#1a1f28;--ink:#e6ebf2;--sub:#95a0b2;--line:#2a303c;--brand:#3fa07c;--brand-d:#57b490;}}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Yu Gothic UI","Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.6}
+  .bar{background:linear-gradient(135deg,var(--brand),var(--brand-d));color:#fff;padding:16px 20px}
+  .bar h1{margin:0;font-size:17px}.bar p{margin:2px 0 0;font-size:12px;opacity:.9}
+  .wrap{max-width:820px;margin:0 auto;padding:18px 16px 60px}
+  .note{background:#fff7e6;border:1px solid #ffd98a;color:#7a5a00;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:16px}
+  @media(prefers-color-scheme:dark){.note{background:#2a2410;border-color:#5a4a10;color:#e6c65a}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+  h2{font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--sub);margin:0 0 12px}
+  label{display:block;font-size:12px;color:var(--sub);margin:8px 0 3px}
+  input,select{width:100%;padding:9px 10px;font-size:14px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+  .row5{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  @media(max-width:640px){.row5{grid-template-columns:1fr 1fr}}
+  button{border:none;border-radius:9px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer}
+  .primary{background:var(--brand);color:#fff}.ghost{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+  .danger{background:var(--danger);color:#fff}
+  .list{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .li{padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px;display:flex;justify-content:space-between;gap:8px}
+  .li:hover{background:var(--bg)}.li .area{color:var(--sub);font-size:12px}
+  .li.sel{background:var(--brand);color:#fff}.li.sel .area{color:rgba(255,255,255,.85)}
+  .hint{font-size:11.5px;color:var(--sub);margin-top:4px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  code{background:var(--bg);padding:1px 6px;border-radius:5px;font-size:12px}
+  .ok{color:var(--brand);font-weight:700;font-size:13px;margin-left:8px}
+</style>
+</head>
+<body>
+  <div class="bar"><h1>🗑️ ごみ収集日ガイド ｜ データ管理</h1><p id="barSub"></p></div>
+  <div class="wrap">
+    <div class="note">⚠️ この画面は市職員向けの内部ツールです。公開URLに置く場合はBasic認証等でアクセス制限してください。編集後は「書き出し」→ ファイルを差し替えて公開反映します。</div>
+
+    <!-- ブランド設定 -->
+    <div class="card">
+      <h2>① ブランド設定</h2>
+      <div class="grid">
+        <div><label>市名（正式）</label><input id="c_cityName"></div>
+        <div><label>市名（短縮）</label><input id="c_cityShort"></div>
+        <div><label>メインカラー</label><input id="c_brandColor" type="color" style="height:40px;padding:2px"></div>
+        <div><label>濃色</label><input id="c_brandColorDark" type="color" style="height:40px;padding:2px"></div>
+        <div><label>ロゴ絵文字</label><input id="c_logo"></div>
+        <div><label>データ版</label><input id="c_dataUpdated"></div>
+        <div style="grid-column:1/3"><label>公式ごみ情報URL</label><input id="c_officialUrl"></div>
+        <div style="grid-column:1/3"><label>分別辞典URL</label><input id="c_dictUrl"></div>
+      </div>
+    </div>
+
+    <!-- 自治区データ -->
+    <div class="card">
+      <h2>② 自治区データ <span id="dCount" class="hint"></span></h2>
+      <input id="dSearch" placeholder="🔍 自治区を検索" style="margin-bottom:8px">
+      <div class="list" id="dList"></div>
+      <div class="actions"><button class="ghost" id="addBtn">＋ 新規自治区を追加</button></div>
+
+      <div id="editPanel" style="display:none;margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
+        <div class="grid">
+          <div><label>地区（グループ）</label><input id="e_area"></div>
+          <div><label>自治区名</label><input id="e_name"></div>
+        </div>
+        <label style="margin-top:12px">収集スケジュール（記法：毎週=<code>火金</code> / 第n回=<code>2水</code>）</label>
+        <div class="row5">
+          <div><label>燃やす</label><input id="e_moyasu" placeholder="火金"></div>
+          <div><label>プラ</label><input id="e_plastic" placeholder="月"></div>
+          <div><label>資源</label><input id="e_shigen" placeholder="2水"></div>
+          <div><label>金属</label><input id="e_kinzoku" placeholder="2水"></div>
+          <div><label>埋める</label><input id="e_umeru" placeholder="4水"></div>
+        </div>
+        <div class="hint">曜日=日月火水木金土。第n回は「回数+曜日」（例 <code>4木</code>=第4木曜）。空欄はそのカテゴリ無し。</div>
+        <div class="actions">
+          <button class="primary" id="saveBtn">この自治区を保存</button>
+          <button class="danger" id="delBtn">削除</button>
+          <span id="saveMsg" class="ok"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 書き出し -->
+    <div class="card">
+      <h2>③ 書き出し（公開反映）</h2>
+      <p style="font-size:13px;margin:0 0 10px">編集内容をファイルに書き出します。ダウンロードした <code>data.js</code> / <code>config.js</code> をリポジトリに置き換えて公開してください。</p>
+      <div class="actions">
+        <button class="primary" id="expData">data.js をダウンロード</button>
+        <button class="primary" id="expConfig">config.js をダウンロード</button>
+        <button class="ghost" id="preview">プレビューで確認 ↗</button>
+      </div>
+    </div>
+  </div>
+
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="dict.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const WDC={"日":0,"月":1,"火":2,"水":3,"木":4,"金":5,"土":6};
+const WDN=["日","月","火","水","木","金","土"];
+let selId=null;
+
+// ---- スケジュール ⇄ 記法トークン ----
+function schedToToken(s){
+  if(!s) return "";
+  if(s.weekly) return s.weekly.map(w=>WDN[w]).join("");
+  if(s.monthly) return String(s.monthly.week)+WDN[s.monthly.day];
+  return "";
+}
+function tokenToSched(tok){
+  tok=(tok||"").trim(); if(!tok) return null;
+  if(/^[0-9]/.test(tok)){ const wk=parseInt(tok[0],10); const day=WDC[tok.slice(1)];
+    if(isNaN(wk)||day===undefined) return "ERR"; return {monthly:{week:wk,day}}; }
+  const days=[...tok].map(c=>WDC[c]); if(days.some(d=>d===undefined)) return "ERR";
+  return {weekly:days};
+}
+
+// ---- ブランド設定 ----
+const cmap=["cityName","cityShort","brandColor","brandColorDark","logo","dataUpdated","officialUrl","dictUrl"];
+function loadConfig(){ cmap.forEach(k=>{ const el=$("#c_"+k); if(el) el.value=CONFIG[k]||""; });
+  $("#barSub").textContent = CONFIG.cityName+"（全"+DISTRICTS.length+"自治区）"; }
+cmap.forEach(k=>{ const el=$("#c_"+k); if(el) el.addEventListener("input",()=>{CONFIG[k]=el.value; loadConfig();}); });
+
+// ---- 自治区リスト ----
+function renderList(){
+  const q=$("#dSearch").value.trim();
+  const box=$("#dList"); box.innerHTML="";
+  DISTRICTS.filter(d=>!q||d.name.includes(q)||d.area.includes(q)).slice(0,400).forEach(d=>{
+    const el=document.createElement("div"); el.className="li"+(d.id===selId?" sel":"");
+    el.innerHTML=`<span>${d.name}</span><span class="area">${d.area}</span>`;
+    el.onclick=()=>{ selId=d.id; openEdit(d); renderList(); };
+    box.appendChild(el);
+  });
+  $("#dCount").textContent="全"+DISTRICTS.length+"件";
+}
+$("#dSearch").addEventListener("input",renderList);
+
+function openEdit(d){
+  $("#editPanel").style.display="block"; $("#saveMsg").textContent="";
+  $("#e_area").value=d.area; $("#e_name").value=d.name;
+  ["moyasu","plastic","shigen","kinzoku","umeru"].forEach(k=>$("#e_"+k).value=schedToToken(d.schedule[k]));
+}
+
+$("#saveBtn").onclick=()=>{
+  const d=DISTRICTS.find(x=>x.id===selId); if(!d) return;
+  const sch={};
+  for(const k of ["moyasu","plastic","shigen","kinzoku","umeru"]){
+    const r=tokenToSched($("#e_"+k).value);
+    if(r==="ERR"){ alert(`「${k}」の記法が不正です: ${$("#e_"+k).value}`); return; }
+    if(r) sch[k]=r;
+  }
+  d.area=$("#e_area").value.trim()||d.area;
+  d.name=$("#e_name").value.trim()||d.name;
+  d.schedule=sch;
+  $("#saveMsg").textContent="✓ 保存しました（書き出しで確定）";
+  renderList();
+};
+
+$("#delBtn").onclick=()=>{
+  const i=DISTRICTS.findIndex(x=>x.id===selId); if(i<0) return;
+  if(!confirm(`「${DISTRICTS[i].name}」を削除しますか？`)) return;
+  DISTRICTS.splice(i,1); selId=null; $("#editPanel").style.display="none"; renderList(); loadConfig();
+};
+
+$("#addBtn").onclick=()=>{
+  const id="d"+(Date.now());
+  const d={id,area:"旧豊田市内",name:"新規自治区",verified:false,
+    schedule:{moyasu:{weekly:[2,5]},plastic:{weekly:[1]},shigen:{monthly:{week:1,day:3}},
+      kinzoku:{monthly:{week:1,day:3}},umeru:{monthly:{week:3,day:3}}}};
+  DISTRICTS.push(d); selId=id; openEdit(d); renderList(); loadConfig();
+  $("#e_name").focus(); $("#e_name").select();
+};
+
+// ---- 書き出し ----
+function download(name,text){
+  const b=new Blob([text],{type:"text/javascript;charset=utf-8"});
+  const u=URL.createObjectURL(b); const a=document.createElement("a");
+  a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),800);
+}
+$("#expData").onclick=()=>{
+  const t=`// generated by admin.html ${new Date().toISOString().slice(0,10)}\n`+
+    `const CATEGORIES = ${JSON.stringify(CATEGORIES,null,1)};\n`+
+    `const DISTRICTS = ${JSON.stringify(DISTRICTS,null,1)};\n`+
+    `const RULES = ${JSON.stringify(RULES,null,1)};\n`+
+    `const SORTING = ${JSON.stringify(SORTING,null,1)};\n`;
+  download("data.js",t);
+};
+$("#expConfig").onclick=()=>{
+  const t=`// generated by admin.html ${new Date().toISOString().slice(0,10)}\n`+
+    `const CONFIG = ${JSON.stringify(CONFIG,null,1)};\n`+
+    `const I18N = ${JSON.stringify(I18N,null,1)};\n`;
+  download("config.js",t);
+};
+$("#preview").onclick=()=>window.open("index.html","_blank");
+
+loadConfig(); renderList();
+</script>
+</body>
+</html>

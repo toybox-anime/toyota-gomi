@@ -77,6 +77,14 @@
     display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,opacity .2s}
   .calbtn:active{transform:scale(.98)}
   .calbtn.done{background:var(--sub)}
+  #dictSearch{width:100%;padding:12px 14px;font-size:16px;border:1px solid var(--line);
+    border-radius:12px;background:var(--bg);color:var(--text)}
+  .drow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .drow:last-child{border:none}
+  .dname{font-weight:600;font-size:14.5px}
+  .dnote{font-size:12px;color:var(--sub);margin-top:2px;line-height:1.5}
+  .chip{flex:none;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;
+    color:#fff;padding:6px 11px;border-radius:999px;white-space:nowrap}
   .rule{font-size:14px;line-height:1.8}.rule b{color:var(--text)}
   .note{font-size:12px;color:var(--sub);line-height:1.7;margin-top:10px}
   footer{text-align:center;color:var(--sub);font-size:11px;margin-top:22px;line-height:1.8}
@@ -103,6 +111,12 @@
     <div class="card today" id="todayCard"></div>
     <div class="card"><h2 id="hSchedule"></h2><div id="schedule"></div>
       <button id="calBtn" class="calbtn"></button></div>
+    <div class="card">
+      <h2 id="hDict"></h2>
+      <input id="dictSearch" type="search" autocomplete="off" style="margin-bottom:4px">
+      <div id="dictResults"></div>
+      <a id="dictLink" href="#" target="_blank" rel="noopener" style="font-size:12px;display:inline-block;margin-top:8px"></a>
+    </div>
     <div class="card"><h2 id="hSort"></h2><div id="sorting"></div></div>
     <div class="card"><h2 id="hRules"></h2><div class="rule" id="rules"></div></div>
     <footer id="footer"></footer>
@@ -110,6 +124,7 @@
 
 <script src="config.js"></script>
 <script src="data.js"></script>
+<script src="dict.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 let LANG = localStorage.getItem("lang") || CONFIG.defaultLang;
@@ -168,6 +183,10 @@ function applyLang(){
   $("#hSchedule").textContent = T().schedule;
   $("#hSort").textContent = T().sort;
   $("#hRules").textContent = T().rules;
+  $("#hDict").textContent = T().dictQ;
+  $("#dictSearch").placeholder = T().dictPh;
+  const dl=$("#dictLink"); dl.textContent = T().dictOfficial + " ↗"; dl.href = CONFIG.dictUrl;
+  renderDict($("#dictSearch").value);
   [...langbar.children].forEach(b=>b.classList.toggle("on", b.dataset.l===LANG));
   buildOptions(search.value);
   const saved=localStorage.getItem("district");
@@ -256,6 +275,34 @@ function buildICS(d){
   L.push("END:VCALENDAR");
   return L.join("\r\n");
 }
+// ===== 分別辞典 検索 =====
+function dictCatInfo(cat){
+  if(CATEGORIES[cat]) return { icon:CATEGORIES[cat].icon, color:CATEGORIES[cat].color, label:T().cats[cat] };
+  const e=DICT_EXTRA[cat]; const lk=(LANG==="en"||LANG==="pt")?LANG:"ja";
+  return { icon:e.icon, color:e.color, label:e[lk] };
+}
+function renderDict(q){
+  const box=$("#dictResults"); q=(q||"").trim(); const ql=q.toLowerCase();
+  if(!q){ box.innerHTML=""; return; }
+  const lk=(LANG==="en"||LANG==="pt")?LANG:"ja";
+  const hits=DICT.filter(it=>
+    it.ja.includes(q) || (it.yomi&&it.yomi.includes(q)) ||
+    it.en.toLowerCase().includes(ql) || it.pt.toLowerCase().includes(ql)
+  ).slice(0,25);
+  if(!hits.length){ box.innerHTML=`<div class="dnote" style="padding:10px 0">${T().dictNone}</div>`; return; }
+  box.innerHTML = hits.map(it=>{
+    const c=dictCatInfo(it.cat);
+    const name = it[LANG] || it.ja;
+    const note = it.note ? (it.note[lk]||it.note.ja)
+      : (DICT_EXTRA[it.cat] ? (DICT_EXTRA[it.cat].note[lk]||DICT_EXTRA[it.cat].note.ja) : "");
+    return `<div class="drow">
+      <div><div class="dname">${name}</div>${note?`<div class="dnote">${note}</div>`:""}</div>
+      <span class="chip" style="background:${c.color}">${c.icon} ${c.label}</span>
+    </div>`;
+  }).join("");
+}
+$("#dictSearch").addEventListener("input", e=>renderDict(e.target.value));
+
 function downloadICS(d){
   const blob = new Blob([buildICS(d)], {type:"text/calendar;charset=utf-8"});
   const url = URL.createObjectURL(blob);
