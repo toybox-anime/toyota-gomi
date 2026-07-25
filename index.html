@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>豊田市 ごみ収集日ガイド</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --text:#1f2430; --sub:#6b7280;
+    --line:#e6e8ec; --accent:#2f9e6e; --accent-d:#237a55;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#12141a; --card:#1b1e26; --text:#e8eaf0; --sub:#9aa1b0; --line:#2a2e38; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    background:var(--bg);color:var(--text);-webkit-text-size-adjust:100%}
+  .wrap{max-width:560px;margin:0 auto;padding:16px 16px 48px}
+  header{padding:8px 2px 16px}
+  h1{font-size:20px;margin:0 0 2px}
+  .city{color:var(--sub);font-size:13px}
+  input#search{width:100%;padding:13px 14px;font-size:16px;border:1px solid var(--line);
+    border-radius:12px;background:var(--card);color:var(--text);margin:4px 0 8px}
+  select{width:100%;padding:14px;font-size:16px;border:1px solid var(--line);
+    border-radius:12px;background:var(--card);color:var(--text);margin:0 0 6px;appearance:none}
+  #count{font-size:12px;color:var(--sub);margin:0 2px 16px;text-align:right}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+  .today{background:linear-gradient(135deg,var(--accent),var(--accent-d));color:#fff;border:none}
+  .today .lbl{font-size:12px;opacity:.85;letter-spacing:.05em}
+  .today .day{font-size:15px;margin:2px 0 10px;opacity:.9}
+  .today .pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);
+    padding:8px 12px;border-radius:999px;font-size:15px;font-weight:600;margin:4px 6px 0 0}
+  .today .none{font-size:15px;opacity:.9}
+  h2{font-size:14px;color:var(--sub);margin:2px 0 12px;font-weight:600;letter-spacing:.03em}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .cat{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .when{color:var(--sub);font-size:13px;text-align:right}
+  .next{font-size:12px;color:var(--accent);font-weight:600}
+  .warn{background:#fff7e6;border-color:#ffd98a;color:#7a5a00;font-size:13px}
+  @media (prefers-color-scheme: dark){.warn{background:#2a2410;border-color:#5a4a10;color:#e6c65a}}
+  .sortgrid details{border-bottom:1px solid var(--line)}
+  .sortgrid details:last-child{border:none}
+  summary{padding:11px 0;font-weight:600;font-size:15px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px}
+  summary::-webkit-details-marker{display:none}
+  .items{padding:0 0 12px 30px;color:var(--sub);font-size:14px;line-height:1.9}
+  .rule{font-size:14px;line-height:1.7}
+  .rule b{color:var(--text)}
+  .note{font-size:12px;color:var(--sub);line-height:1.7;margin-top:8px}
+  footer{text-align:center;color:var(--sub);font-size:11px;margin-top:20px;line-height:1.7}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🗑️ ごみ収集日ガイド</h1>
+    <div class="city" id="cityName"></div>
+  </header>
+
+  <input id="search" type="search" placeholder="🔍 自治区・町名で検索（例：中区、浄水、藤岡）" autocomplete="off">
+  <select id="district"></select>
+  <div id="count"></div>
+
+  <div class="card today" id="todayCard"></div>
+
+  <div class="card">
+    <h2>収集スケジュール</h2>
+    <div id="schedule"></div>
+  </div>
+
+  <div class="card sortgrid">
+    <h2>分別早見表（タップで開く）</h2>
+    <div id="sorting"></div>
+  </div>
+
+  <div class="card">
+    <h2>出し方ルール</h2>
+    <div class="rule" id="rules"></div>
+  </div>
+
+  <div class="card warn" id="stationCard" style="display:none"></div>
+
+  <footer id="footer"></footer>
+</div>
+
+<script src="data.js"></script>
+<script>
+const WD = ["日","月","火","水","木","金","土"];
+const $ = s => document.querySelector(s);
+
+document.title = CITY + " ごみ収集日ガイド";
+$("#cityName").textContent = CITY;
+
+// 自治区セレクト（地区ごとにグループ化・検索フィルタ対応）
+const sel = $("#district");
+const search = $("#search");
+
+function buildOptions(q){
+  q = (q||"").trim();
+  sel.innerHTML = "";
+  const areas = [...new Set(DISTRICTS.map(d=>d.area))];
+  let shown = 0, firstId = null;
+  areas.forEach(area=>{
+    const list = DISTRICTS.filter(d=>d.area===area &&
+      (!q || d.name.includes(q) || area.includes(q)));
+    if(!list.length) return;
+    const g = document.createElement("optgroup");
+    g.label = area;
+    list.forEach(d=>{
+      const o = document.createElement("option");
+      o.value = d.id; o.textContent = d.name;
+      g.appendChild(o); shown++;
+      if(!firstId) firstId = d.id;
+    });
+    sel.appendChild(g);
+  });
+  $("#count").textContent = q ? `該当 ${shown} 件` : `全 ${DISTRICTS.length} 自治区`;
+  return firstId;
+}
+
+buildOptions("");
+sel.value = localStorage.getItem("district") || DISTRICTS[0].id;
+if(!sel.value) sel.value = DISTRICTS[0].id;
+
+search.addEventListener("input", ()=>{
+  const first = buildOptions(search.value);
+  if(first){ sel.value = first; render(); }
+});
+
+// 第n週判定
+function nthWeek(date){ return Math.floor((date.getDate()-1)/7)+1; }
+
+// あるカテゴリが「その日」収集かどうか
+function collectsOn(sch, date){
+  if(!sch) return false;
+  const dow = date.getDay();
+  if(sch.weekly) return sch.weekly.includes(dow);
+  if(sch.monthly) return sch.monthly.day===dow && sch.monthly.week===nthWeek(date);
+  return false;
+}
+
+// 次の収集日（今日含む、最大60日先まで）
+function nextDate(sch, from){
+  const d = new Date(from); d.setHours(0,0,0,0);
+  for(let i=0;i<62;i++){
+    if(collectsOn(sch,d)) return {date:new Date(d), days:i};
+    d.setDate(d.getDate()+1);
+  }
+  return null;
+}
+
+function fmtWhen(sch){
+  if(sch.weekly) return "毎週 "+sch.weekly.map(w=>WD[w]).join("・")+"曜";
+  if(sch.monthly) return "第"+sch.monthly.week+" "+WD[sch.monthly.day]+"曜";
+  return "";
+}
+
+function render(){
+  const d = DISTRICTS.find(x=>x.id===sel.value);
+  localStorage.setItem("district", d.id);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomo = new Date(today); tomo.setDate(tomo.getDate()+1);
+
+  // 今日カード
+  const todays = Object.keys(CATEGORIES).filter(k=>collectsOn(d.schedule[k],today));
+  const tomos  = Object.keys(CATEGORIES).filter(k=>collectsOn(d.schedule[k],tomo));
+  let html = `<div class="lbl">TODAY ${today.getMonth()+1}/${today.getDate()}（${WD[today.getDay()]}）</div>`;
+  if(todays.length){
+    html += todays.map(k=>`<span class="pill">${CATEGORIES[k].icon} ${CATEGORIES[k].name}</span>`).join("");
+  } else {
+    html += `<div class="none">今日の収集はありません</div>`;
+  }
+  if(tomos.length){
+    html += `<div class="day" style="margin-top:12px">明日：`+
+      tomos.map(k=>CATEGORIES[k].name).join("、")+`</div>`;
+  }
+  $("#todayCard").innerHTML = html;
+
+  // スケジュール一覧
+  $("#schedule").innerHTML = Object.keys(CATEGORIES).map(k=>{
+    const sch = d.schedule[k]; if(!sch) return "";
+    const c = CATEGORIES[k];
+    const nx = nextDate(sch, today);
+    const nxTxt = nx ? (nx.days===0?"今日":nx.days===1?"明日":
+      `次は ${nx.date.getMonth()+1}/${nx.date.getDate()}（${WD[nx.date.getDay()]}）`) : "";
+    return `<div class="row">
+      <div class="cat"><span class="dot" style="background:${c.color}"></span>${c.icon} ${c.name}</div>
+      <div><div class="when">${fmtWhen(sch)}</div><div class="next">${nxTxt}</div></div>
+    </div>`;
+  }).join("");
+
+  // 分別早見表
+  $("#sorting").innerHTML = Object.keys(SORTING).map(k=>{
+    const c = CATEGORIES[k];
+    return `<details><summary><span class="dot" style="background:${c.color}"></span>${c.icon} ${c.name}</summary>
+      <div class="items">${SORTING[k].join("　/　")}</div></details>`;
+  }).join("");
+
+  // ルール
+  $("#rules").innerHTML =
+    `<b>時間：</b>${RULES.time}<br><b>場所：</b>${RULES.place}`+
+    `<div class="note">`+RULES.notes.map(n=>"・"+n).join("<br>")+`</div>`;
+
+  // 資源ステーション
+  const st = $("#stationCard");
+  if(d.stations && d.stations.shigen){
+    st.style.display="block";
+    st.innerHTML = `<b>♻️ 資源ステーション（${d.name}）</b><br>`+d.stations.shigen.map(s=>"・"+s).join("<br>");
+  } else st.style.display="none";
+
+  // フッター
+  $("#footer").innerHTML =
+    `📍 ${d.area}　✅ 豊田市公式データ（全${DISTRICTS.length}自治区収録）`+
+    `<br>出典：<a href="https://www.city.toyota.aichi.jp/kurashi/gomi/gomi/1041628.html" target="_blank" rel="noopener">豊田市「地区別資源・ごみの収集日」</a>`;
+}
+
+sel.addEventListener("change", render);
+render();
+</script>
+</body>
+</html>
