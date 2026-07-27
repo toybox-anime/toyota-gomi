@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#6a4c9c">
+<title>知立市 ごみ収集日ガイド（営業デモ）</title>
+<style>
+  :root{ --bg:#f5f4f8; --card:#fff; --text:#1e1a2b; --sub:#6b6480; --line:#e7e4ee;
+    --brand:#6a4c9c; --brand-d:#513a78; --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.04); }
+  @media(prefers-color-scheme:dark){:root{--bg:#12111a;--card:#1c1a28;--text:#e9e6f2;--sub:#a29cb8;--line:#2c2940;--shadow:0 1px 3px rgba(0,0,0,.3);}}
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+  .demo{background:#ffe08a;color:#5a4300;font-size:12.5px;font-weight:700;text-align:center;padding:8px 12px;line-height:1.5}
+  .topbar{background:linear-gradient(135deg,var(--brand),var(--brand-d));color:#fff;padding:16px}
+  .topbar .inner{max-width:600px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .logo{font-size:26px}
+  .brand h1{font-size:18px;margin:0;font-weight:700}
+  .brand .city{font-size:12px;opacity:.9}
+  .langs{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+  .langs button{border:none;background:rgba(255,255,255,.16);color:#fff;padding:7px 12px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer}
+  .langs button.on{background:#fff;color:var(--brand-d)}
+  .wrap{max-width:600px;margin:0 auto;padding:16px 16px 48px}
+  select{width:100%;padding:14px;font-size:16px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);margin:4px 0 14px;box-shadow:var(--shadow)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .today{background:linear-gradient(135deg,var(--brand),var(--brand-d));color:#fff;border:none}
+  .today .lbl{font-size:12px;opacity:.85;font-weight:600;letter-spacing:.05em}
+  .today .pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);padding:9px 13px;border-radius:999px;font-size:15px;font-weight:700;margin:8px 6px 0 0}
+  .today .none{font-size:15px;opacity:.92;margin-top:8px}
+  h2{font-size:13px;color:var(--sub);margin:2px 0 12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}
+  .row:last-child{border:none}
+  .cat{display:flex;align-items:center;gap:11px;font-weight:600;font-size:15px}
+  .dot{width:11px;height:11px;border-radius:50%;flex:none}
+  .when{color:var(--sub);font-size:13px;text-align:right}
+  .next{font-size:12px;color:var(--brand);font-weight:700}
+  footer{text-align:center;color:var(--sub);font-size:11px;margin-top:20px;line-height:1.8}
+  a{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="demo" id="demoBar"></div>
+<div class="topbar"><div class="inner">
+  <div class="brand"><span class="logo">🗑️</span>
+    <div><h1 id="appName"></h1><div class="city" id="cityName"></div></div></div>
+  <div class="langs" id="langs"></div>
+</div></div>
+<div class="wrap">
+  <select id="district"></select>
+  <div class="card today" id="todayCard"></div>
+  <div class="card"><h2 id="hSchedule"></h2><div id="schedule"></div></div>
+  <footer id="footer"></footer>
+</div>
+
+<script>
+// ===== 知立市デモ設定（再スキン例）=====
+const CONFIG={ cityName:"愛知県知立市", cityShort:"知立市", brand:"#6a4c9c" };
+// 知立市の分別区分（公式の区分名。色はブランド用）
+const CATEGORIES={
+  kanen:  {color:"#e5533c", icon:"🔥"},
+  pura:   {color:"#e6a417", icon:"♳"},
+  shigen: {color:"#2f9e6e", icon:"♻️"},
+  funen:  {color:"#6b7280", icon:"🪨"},
+};
+const I18N={
+  ja:{label:"日本語",app:"ごみ収集日ガイド",today:"今日",tomorrow:"明日",none:"今日の収集はありません",sched:"収集スケジュール",next:"次は",
+      wd:["日","月","火","水","木","金","土"],weekly:"毎週 {d}曜",monthly:"第{w} {d}曜",
+      cats:{kanen:"可燃ごみ",pura:"プラスチック類",shigen:"資源物",funen:"不燃物"},
+      demo:"🚧 営業デモ｜収集日はサンプルです。正式データは契約後に知立市の公式情報で反映します。"},
+  en:{label:"English",app:"Garbage Collection Guide",today:"Today",tomorrow:"Tomorrow",none:"No collection today",sched:"Collection schedule",next:"Next",
+      wd:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],weekly:"Every {d}",monthly:"{d} of week {w}",
+      cats:{kanen:"Burnable",pura:"Plastics",shigen:"Recyclables",funen:"Non-burnable"},
+      demo:"🚧 Sales demo — schedules are SAMPLE data. Official data added after contract."},
+  pt:{label:"Português",app:"Guia de Coleta de Lixo",today:"Hoje",tomorrow:"Amanhã",none:"Sem coleta hoje",sched:"Programação",next:"Próximo",
+      wd:["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"],weekly:"Toda {d}",monthly:"{d} da {w}ª semana",
+      cats:{kanen:"Queimável",pura:"Plásticos",shigen:"Recicláveis",funen:"Não queimável"},
+      demo:"🚧 Demo de vendas — horários são amostra. Dados oficiais após contrato."},
+  easy:{label:"やさしい日本語",app:"ごみの ひ ガイド",today:"きょう",tomorrow:"あした",none:"きょうは ごみ を ださないで ください",sched:"ごみの ひ",next:"つぎは",
+      wd:["にち","げつ","か","すい","もく","きん","ど"],weekly:"まいしゅう {d}ようび",monthly:"だい{w} {d}ようび",
+      cats:{kanen:"もえる ごみ",pura:"プラスチック",shigen:"しげん",funen:"もえない ごみ"},
+      demo:"🚧 えいぎょう デモ｜ひにちは サンプルです。ほんとうの データは あとで いれます。"},
+};
+// サンプル自治区（★収集日はサンプル。実データではありません）
+const DISTRICTS=[
+  {id:"a",name:"（サンプル）中町",schedule:{kanen:{weekly:[1,4]},pura:{weekly:[2]},shigen:{monthly:{week:1,day:3}},funen:{monthly:{week:3,day:3}}}},
+  {id:"b",name:"（サンプル）山町",schedule:{kanen:{weekly:[2,5]},pura:{weekly:[3]},shigen:{monthly:{week:2,day:4}},funen:{monthly:{week:4,day:4}}}},
+  {id:"c",name:"（サンプル）西町",schedule:{kanen:{weekly:[1,4]},pura:{weekly:[5]},shigen:{monthly:{week:2,day:1}},funen:{monthly:{week:4,day:1}}}},
+  {id:"d",name:"（サンプル）八橋町",schedule:{kanen:{weekly:[2,5]},pura:{weekly:[1]},shigen:{monthly:{week:1,day:5}},funen:{monthly:{week:3,day:5}}}},
+];
+
+const $=s=>document.querySelector(s);
+let LANG=localStorage.getItem("clang")||"ja";
+const T=()=>I18N[LANG];
+document.documentElement.style.setProperty("--brand",CONFIG.brand);
+$("#cityName").textContent=CONFIG.cityName;
+const lb=$("#langs");
+Object.keys(I18N).forEach(l=>{const b=document.createElement("button");b.textContent=I18N[l].label;b.dataset.l=l;
+  b.onclick=()=>{LANG=l;localStorage.setItem("clang",l);apply();render();};lb.appendChild(b);});
+const sel=$("#district");
+DISTRICTS.forEach(d=>{const o=document.createElement("option");o.value=d.id;o.textContent=d.name;sel.appendChild(o);});
+sel.value=DISTRICTS[0].id; sel.onchange=render;
+
+const nthWeek=d=>Math.floor((d.getDate()-1)/7)+1;
+const on=(s,d)=>{if(!s)return false;const w=d.getDay();if(s.weekly)return s.weekly.includes(w);if(s.monthly)return s.monthly.day===w&&s.monthly.week===nthWeek(d);return false;};
+function nextDate(s,f){const d=new Date(f);d.setHours(0,0,0,0);for(let i=0;i<62;i++){if(on(s,d))return{date:new Date(d),days:i};d.setDate(d.getDate()+1);}return null;}
+function fmtWhen(s){const t=T();if(s.weekly)return t.weekly.replace("{d}",s.weekly.map(w=>t.wd[w]).join("・"));if(s.monthly)return t.monthly.replace("{w}",s.monthly.week).replace("{d}",t.wd[s.monthly.day]);return"";}
+
+function apply(){
+  document.documentElement.lang=LANG==="pt"?"pt":(LANG==="en"?"en":"ja");
+  $("#appName").textContent=T().app; $("#hSchedule").textContent=T().sched; $("#demoBar").textContent=T().demo;
+  [...lb.children].forEach(b=>b.classList.toggle("on",b.dataset.l===LANG));
+}
+function render(){
+  const d=DISTRICTS.find(x=>x.id===sel.value); const t=T();
+  const today=new Date();today.setHours(0,0,0,0);const tomo=new Date(today);tomo.setDate(tomo.getDate()+1);
+  const cats=Object.keys(CATEGORIES);
+  const td=cats.filter(k=>on(d.schedule[k],today)), tm=cats.filter(k=>on(d.schedule[k],tomo));
+  let h=`<div class="lbl">${t.today.toUpperCase()} ${today.getMonth()+1}/${today.getDate()}（${t.wd[today.getDay()]}）</div>`;
+  h+=td.length?td.map(k=>`<span class="pill">${CATEGORIES[k].icon} ${t.cats[k]}</span>`).join(""):`<div class="none">${t.none}</div>`;
+  if(tm.length)h+=`<div style="margin-top:12px;opacity:.95;font-size:14px;border-top:1px solid rgba(255,255,255,.25);padding-top:10px">${t.tomorrow}：`+tm.map(k=>t.cats[k]).join("、")+`</div>`;
+  $("#todayCard").innerHTML=h;
+  $("#schedule").innerHTML=cats.map(k=>{const s=d.schedule[k];const c=CATEGORIES[k];const nx=nextDate(s,today);
+    const nt=nx?(nx.days===0?t.today:nx.days===1?t.tomorrow:`${t.next} ${nx.date.getMonth()+1}/${nx.date.getDate()}（${t.wd[nx.date.getDay()]}）`):"";
+    return `<div class="row"><div class="cat"><span class="dot" style="background:${c.color}"></span>${c.icon} ${t.cats[k]}</div><div><div class="when">${fmtWhen(s)}</div><div class="next">${nt}</div></div></div>`;}).join("");
+  $("#footer").innerHTML=`知立市はさんあ〜る未導入・独自ツールのみ。多言語＋AI写真で差別化提案。<br><a href="../">▶ 豊田市版（全機能フルデモ）を見る</a>`;
+}
+apply(); render();
+</script>
+</body>
+</html>
