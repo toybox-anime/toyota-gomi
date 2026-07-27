@@ -148,6 +148,14 @@
     </div>
 
     <div id="viewGuide" hidden>
+      <div class="card" id="photoCard">
+        <h2 id="hPhoto"></h2>
+        <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+        <button class="calbtn" id="photoBtn"></button>
+        <div id="photoStatus" class="placenote" style="margin-top:8px"></div>
+        <div id="photoResult"></div>
+        <div class="placenote" id="photoDisclaim" style="margin-top:8px"></div>
+      </div>
       <div class="keyrule" id="keyRule"></div>
       <div id="guideCards"></div>
       <div class="card">
@@ -163,6 +171,7 @@
 <script src="data.js"></script>
 <script src="dict.js"></script>
 <script src="guide.js"></script>
+<script src="photo.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 let LANG = localStorage.getItem("lang") || CONFIG.defaultLang;
@@ -222,6 +231,9 @@ function applyLang(){
   $("#hRules").textContent = T().rules;
   $("#tabS").textContent = T().tabS;
   $("#tabG").textContent = T().tabG;
+  $("#hPhoto").textContent = T().phTitle;
+  $("#photoBtn").textContent = T().phBtn;
+  $("#photoDisclaim").textContent = T().phDisclaim;
   $("#hDict").textContent = T().dictQ;
   $("#dictSearch").placeholder = T().dictPh;
   const dl=$("#dictLink"); dl.textContent = T().dictOfficial + " ↗"; dl.href = CONFIG.dictUrl;
@@ -383,6 +395,64 @@ tabbar.querySelectorAll("button").forEach(b=>b.onclick=()=>{
   const v=localStorage.getItem("tab")||"schedule";
   const b=tabbar.querySelector(`button[data-v="${v}"]`); if(b) b.click();
 })();
+
+// ===== 写真判定（オンデバイスAI: TensorFlow.js + MobileNet。API不要）=====
+let _mnModel=null, _mnLoading=null;
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("load "+src));document.head.appendChild(s);});}
+async function ensureModel(){
+  if(_mnModel) return _mnModel;
+  if(!_mnLoading){ _mnLoading=(async()=>{
+    $("#photoStatus").textContent=T().phLoading;
+    if(!window.tf) await loadScript("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js");
+    if(!window.mobilenet) await loadScript("https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js");
+    _mnModel=await mobilenet.load({version:2,alpha:1.0});
+    return _mnModel;
+  })(); }
+  return _mnLoading;
+}
+function lkey(){ return ["en","pt","easy"].includes(LANG)?LANG:"ja"; }
+function resolvePhoto(label){
+  const lk=lkey();
+  for(const m of PHOTO_MAP){
+    if(m.kw.some(k=>label.includes(k))){
+      if(m.item){ const it=DICT.find(d=>d.ja===m.item); if(it){ const info=dictCatInfo(it.cat);
+        const note=it.note?(it.note[lk]||it.note.ja):(DICT_EXTRA[it.cat]?(DICT_EXTRA[it.cat].note[lk]||DICT_EXTRA[it.cat].note.ja):"");
+        return {info, name:(it[LANG]||it.ja), note}; } }
+      if(m.cat){ const info=dictCatInfo(m.cat); return {info, name:(m.label?(m.label[lk]||m.label.ja):info.label), note:""}; }
+    }
+  }
+  return null;
+}
+$("#photoBtn").onclick=()=>$("#photoInput").click();
+$("#photoInput").addEventListener("change", async e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const url=URL.createObjectURL(file);
+  $("#photoResult").innerHTML=`<img src="${url}" alt="" style="max-width:100%;max-height:220px;border-radius:12px;margin-top:10px;display:block">`;
+  try{
+    const model=await ensureModel();
+    $("#photoStatus").textContent=T().phAnalyzing;
+    const img=new Image(); img.src=url; await img.decode();
+    const preds=await model.classify(img,5);
+    $("#photoStatus").textContent="";
+    let hit=null, used=null;
+    for(const p of preds){ const r=resolvePhoto(p.className.toLowerCase()); if(r){ hit=r; used=p; break; } }
+    const alt=preds.slice(0,3).map(p=>`${p.className.split(",")[0]} ${Math.round(p.probability*100)}%`).join(" ・ ");
+    if(hit){
+      $("#photoResult").insertAdjacentHTML("beforeend",`
+       <div class="drow" style="margin-top:12px">
+        <div><div class="dname">${hit.name}</div>${hit.note?`<div class="dnote">${hit.note}</div>`:""}
+          <div class="dnote">${T().phConf} ${Math.round(used.probability*100)}%</div></div>
+        <span class="chip" style="background:${hit.info.color}">${hit.info.icon} ${hit.info.label}</span></div>
+       <div class="placenote" style="margin-top:6px">AI: ${alt}</div>`);
+    } else {
+      $("#photoResult").insertAdjacentHTML("beforeend",
+        `<div class="dnote" style="margin-top:12px">${T().phNoMatch}</div><div class="placenote" style="margin-top:6px">AI: ${alt}</div>`);
+    }
+  }catch(err){
+    $("#photoStatus").textContent="";
+    $("#photoResult").insertAdjacentHTML("beforeend",`<div class="dnote" style="margin-top:12px">${T().phNoMatch}</div>`);
+  } finally { setTimeout(()=>URL.revokeObjectURL(url),4000); }
+});
 
 function downloadICS(d){
   const blob = new Blob([buildICS(d)], {type:"text/calendar;charset=utf-8"});

@@ -1,5 +1,5 @@
 // Service Worker — オフライン対応（アプリシェルをキャッシュ）
-const CACHE = "gomi-v4";
+const CACHE = "gomi-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const ASSETS = [
   "./data.js",
   "./dict.js",
   "./guide.js",
+  "./photo.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",
@@ -26,6 +27,8 @@ self.addEventListener("activate", e => {
 // ネット優先→失敗時キャッシュ（データ更新を取りこぼさない。オフラインでも動く）
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
+  // 外部CDN（TensorFlow.js/モデル等）はSWで扱わず素通し
+  if (new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request)
       .then(res => {
