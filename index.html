@@ -354,8 +354,10 @@ function renderGuide(){
     const icon=isCat?CATEGORIES[g.cat].icon:g.icon;
     const pl=PLACES[g.place];
     const desc=(g.desc&&(g.desc[lk]||g.desc.ja))||"";
-    const items=(g.items||[]).map(x=>`<span>${x}</span>`).join("");
-    const rules=(g.rules||[]).map(r=>`<li>${r}</li>`).join("");
+    const itemsArr=(g.items&&(g.items[lk]||g.items.ja))||[];
+    const rulesArr=(g.rules&&(g.rules[lk]||g.rules.ja))||[];
+    const items=itemsArr.map(x=>`<span>${x}</span>`).join("");
+    const rules=rulesArr.map(r=>`<li>${r}</li>`).join("");
     return `<div class="gcard">
       <div class="top"><span class="nm"><span class="dot" style="background:${color}"></span>${icon} ${name}</span>
         <span class="place" style="background:${pl.color}">${pl.icon} ${pl.label[lk]||pl.label.ja}</span></div>
