@@ -85,6 +85,33 @@
   .dnote{font-size:12px;color:var(--sub);margin-top:2px;line-height:1.5}
   .chip{flex:none;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;
     color:#fff;padding:6px 11px;border-radius:999px;white-space:nowrap}
+  /* タブ */
+  .tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:4px;margin:4px 0 14px;box-shadow:var(--shadow)}
+  .tabs button{flex:1;border:none;background:transparent;color:var(--sub);font-size:15px;font-weight:700;
+    padding:10px;border-radius:9px;cursor:pointer}
+  .tabs button.on{background:var(--brand);color:#fff}
+  /* 要点ルール */
+  .keyrule{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);
+    border-left:4px solid var(--brand);border-radius:12px;padding:13px 15px;margin-bottom:14px;
+    font-size:14px;line-height:1.7;box-shadow:var(--shadow)}
+  .keyrule .i{font-size:20px;flex:none;line-height:1.3}
+  /* ガイドカード */
+  .gcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px 16px;
+    margin-bottom:12px;box-shadow:var(--shadow)}
+  .gcard .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .gcard .nm{font-weight:800;font-size:16px;display:flex;align-items:center;gap:9px}
+  .gcard .dot{width:12px;height:12px;border-radius:50%;flex:none}
+  .place{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;
+    color:#fff;padding:5px 10px;border-radius:999px;white-space:nowrap}
+  .gcard .desc{font-size:13.5px;color:var(--sub);margin:9px 0 11px;line-height:1.65}
+  .gcard .lbl{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--sub);text-transform:uppercase;margin:0 0 5px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px}
+  .chips span{font-size:12.5px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 9px}
+  .grules{list-style:none;padding:0;margin:0}
+  .grules li{font-size:13px;color:var(--text);padding:4px 0 4px 20px;position:relative;line-height:1.55}
+  .grules li::before{content:"✓";position:absolute;left:0;color:var(--brand);font-weight:800}
+  .placenote{font-size:11.5px;color:var(--sub);margin-top:8px}
   .rule{font-size:14px;line-height:1.8}.rule b{color:var(--text)}
   .note{font-size:12px;color:var(--sub);line-height:1.7;margin-top:10px}
   footer{text-align:center;color:var(--sub);font-size:11px;margin-top:22px;line-height:1.8}
@@ -104,27 +131,38 @@
   </div></div>
 
   <div class="wrap">
-    <input id="search" type="search" autocomplete="off">
-    <select id="district"></select>
-    <div id="count"></div>
-
-    <div class="card today" id="todayCard"></div>
-    <div class="card"><h2 id="hSchedule"></h2><div id="schedule"></div>
-      <button id="calBtn" class="calbtn"></button></div>
-    <div class="card">
-      <h2 id="hDict"></h2>
-      <input id="dictSearch" type="search" autocomplete="off" style="margin-bottom:4px">
-      <div id="dictResults"></div>
-      <a id="dictLink" href="#" target="_blank" rel="noopener" style="font-size:12px;display:inline-block;margin-top:8px"></a>
+    <div class="tabs" id="tabs">
+      <button data-v="schedule" class="on" id="tabS"></button>
+      <button data-v="guide" id="tabG"></button>
     </div>
-    <div class="card"><h2 id="hSort"></h2><div id="sorting"></div></div>
-    <div class="card"><h2 id="hRules"></h2><div class="rule" id="rules"></div></div>
-    <footer id="footer"></footer>
+
+    <div id="viewSchedule">
+      <input id="search" type="search" autocomplete="off">
+      <select id="district"></select>
+      <div id="count"></div>
+      <div class="card today" id="todayCard"></div>
+      <div class="card"><h2 id="hSchedule"></h2><div id="schedule"></div>
+        <button id="calBtn" class="calbtn"></button></div>
+      <div class="card"><h2 id="hRules"></h2><div class="rule" id="rules"></div></div>
+      <footer id="footer"></footer>
+    </div>
+
+    <div id="viewGuide" hidden>
+      <div class="keyrule" id="keyRule"></div>
+      <div id="guideCards"></div>
+      <div class="card">
+        <h2 id="hDict"></h2>
+        <input id="dictSearch" type="search" autocomplete="off" style="margin-bottom:4px">
+        <div id="dictResults"></div>
+        <a id="dictLink" href="#" target="_blank" rel="noopener" style="font-size:12px;display:inline-block;margin-top:8px"></a>
+      </div>
+    </div>
   </div>
 
 <script src="config.js"></script>
 <script src="data.js"></script>
 <script src="dict.js"></script>
+<script src="guide.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 let LANG = localStorage.getItem("lang") || CONFIG.defaultLang;
@@ -181,12 +219,14 @@ function applyLang(){
   $("#appName").textContent = T().appName;
   $("#search").placeholder = T().search;
   $("#hSchedule").textContent = T().schedule;
-  $("#hSort").textContent = T().sort;
   $("#hRules").textContent = T().rules;
+  $("#tabS").textContent = T().tabS;
+  $("#tabG").textContent = T().tabG;
   $("#hDict").textContent = T().dictQ;
   $("#dictSearch").placeholder = T().dictPh;
   const dl=$("#dictLink"); dl.textContent = T().dictOfficial + " ↗"; dl.href = CONFIG.dictUrl;
   renderDict($("#dictSearch").value);
+  renderGuide();
   [...langbar.children].forEach(b=>b.classList.toggle("on", b.dataset.l===LANG));
   buildOptions(search.value);
   const saved=localStorage.getItem("district");
@@ -219,12 +259,6 @@ function render(){
     return `<div class="row">
       <div class="cat"><span class="dot" style="background:${c.color}"></span>${c.icon} ${cn(k)}</div>
       <div><div class="when">${fmtWhen(s)}</div><div class="next">${nxt}</div></div></div>`;
-  }).join("");
-
-  $("#sorting").innerHTML = cats.map(k=>{
-    if(!SORTING[k]) return ""; const c=CATEGORIES[k];
-    return `<details><summary><span class="dot" style="background:${c.color}"></span>${c.icon} ${cn(k)}</summary>
-      <div class="items">${SORTING[k].join("　/　")}</div></details>`;
   }).join("");
 
   $("#rules").innerHTML =
@@ -308,6 +342,45 @@ function renderDict(q){
   }).join("");
 }
 $("#dictSearch").addEventListener("input", e=>renderDict(e.target.value));
+
+// ===== 分別ガイド（出す場所の軸で見える化）=====
+function renderGuide(){
+  const lk=["en","pt","easy"].includes(LANG)?LANG:"ja";
+  $("#keyRule").innerHTML=`<span class="i">💡</span><div>${KEY_RULE[lk]||KEY_RULE.ja}</div>`;
+  $("#guideCards").innerHTML=GUIDE.map(g=>{
+    const isCat=!!CATEGORIES[g.cat];
+    const name=isCat?T().cats[g.cat]:(g.name[lk]||g.name.ja);
+    const color=isCat?CATEGORIES[g.cat].color:g.color;
+    const icon=isCat?CATEGORIES[g.cat].icon:g.icon;
+    const pl=PLACES[g.place];
+    const desc=(g.desc&&(g.desc[lk]||g.desc.ja))||"";
+    const items=(g.items||[]).map(x=>`<span>${x}</span>`).join("");
+    const rules=(g.rules||[]).map(r=>`<li>${r}</li>`).join("");
+    return `<div class="gcard">
+      <div class="top"><span class="nm"><span class="dot" style="background:${color}"></span>${icon} ${name}</span>
+        <span class="place" style="background:${pl.color}">${pl.icon} ${pl.label[lk]||pl.label.ja}</span></div>
+      <div class="desc">${desc}</div>
+      <div class="lbl">${T().gItems}</div><div class="chips">${items}</div>
+      <div class="lbl">${T().gRules}</div><ul class="grules">${rules}</ul>
+      <div class="placenote">${pl.icon} ${pl.note[lk]||pl.note.ja}</div>
+    </div>`;
+  }).join("");
+}
+
+// タブ切替
+const tabbar=$("#tabs");
+tabbar.querySelectorAll("button").forEach(b=>b.onclick=()=>{
+  tabbar.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+  const v=b.dataset.v;
+  $("#viewSchedule").hidden=(v!=="schedule");
+  $("#viewGuide").hidden=(v!=="guide");
+  localStorage.setItem("tab",v);
+  window.scrollTo(0,0);
+});
+(function restoreTab(){
+  const v=localStorage.getItem("tab")||"schedule";
+  const b=tabbar.querySelector(`button[data-v="${v}"]`); if(b) b.click();
+})();
 
 function downloadICS(d){
   const blob = new Blob([buildICS(d)], {type:"text/calendar;charset=utf-8"});
