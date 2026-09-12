@@ -111,6 +111,23 @@
         <button class="ghost" id="preview">プレビューで確認 ↗</button>
       </div>
     </div>
+
+    <!-- リユース掲示板の承認 -->
+    <div class="card">
+      <h2>⑤ ゆずります掲示板の承認</h2>
+      <p style="font-size:13px;margin:0 0 10px">住民の投稿は、ここで承認するまで公開されません。禁止品（食品・医薬品・家電4品目・危険物）、個人情報、金額の記載があれば「却下」してください。通報3件で自動的に非公開に戻ります。</p>
+      <div class="grid">
+        <div><label>API URL</label><input id="m_api" placeholder="https://gomi-reuse-api.xxx.workers.dev"></div>
+        <div><label>管理トークン（このタブを閉じると消えます）</label><input id="m_token" type="password" autocomplete="off"></div>
+      </div>
+      <div class="actions">
+        <button class="primary" data-mstatus="pending">承認待ち</button>
+        <button class="ghost" data-mstatus="reported">通報あり</button>
+        <button class="ghost" data-mstatus="approved">公開中</button>
+        <span id="m_msg" class="hint"></span>
+      </div>
+      <div id="m_list" style="margin-top:12px"></div>
+    </div>
   </div>
 
 <script src="config.js"></script>
@@ -247,6 +264,51 @@ addEventListener("message",function(e){
 }
 $("#copyEmbed").onclick=async()=>{ try{await navigator.clipboard.writeText($("#embedCode").value);$("#copyMsg").textContent="✓ コピーしました";}catch(e){$("#embedCode").select();document.execCommand("copy");$("#copyMsg").textContent="✓ コピー";} };
 $("#openWidget").onclick=()=>{ const nm=$("#w_district").value; const p=new URLSearchParams(); if(nm)p.set("name",nm); p.set("lang",$("#w_lang").value); p.set("color",CONFIG.brandColor); window.open("widget.html?"+p.toString(),"_blank"); };
+
+// ---- ゆずります掲示板の承認 ----
+const mEsc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const M_CATS={furniture:"家具",appliance:"小型家電",kids:"子ども用品",clothes:"衣類",daily:"日用品",hobby:"本・趣味",other:"その他"};
+const M_ST={pending:"承認待ち",approved:"公開中",closed:"譲渡済",rejected:"却下"};
+$("#m_api").value=sessionStorage.getItem("m_api")||CONFIG.reuseApi||"";
+$("#m_token").value=sessionStorage.getItem("m_token")||"";
+let mStatus="pending";
+async function mFetch(path,opt={}){
+  const api=$("#m_api").value.trim().replace(/\/$/,""), tok=$("#m_token").value.trim();
+  sessionStorage.setItem("m_api",api); sessionStorage.setItem("m_token",tok);
+  const r=await fetch(api+path,{...opt,headers:{...(opt.headers||{}),Authorization:"Bearer "+tok}});
+  const b=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(r.status===401?"管理トークンが違います":(b.message||("エラー "+r.status)));
+  return b;
+}
+async function mLoad(){
+  $("#m_msg").textContent="読み込み中…"; $("#m_list").innerHTML="";
+  document.querySelectorAll("[data-mstatus]").forEach(b=>b.className=b.dataset.mstatus===mStatus?"primary":"ghost");
+  try{
+    const {posts}=await mFetch(`/api/admin/posts?status=${mStatus}`);
+    $("#m_msg").textContent=`${posts.length}件`;
+    $("#m_list").innerHTML=posts.length?posts.map(p=>`
+      <div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px">
+        ${p.image?`<img src="${mEsc(p.image)}" alt="" style="max-width:100%;max-height:200px;border-radius:8px;display:block;margin-bottom:8px">`:""}
+        <div style="font-size:12px;color:var(--sub)">${mEsc(M_CATS[p.category]||p.category)} ・ ${mEsc(p.area)} ・ ${mEsc(M_ST[p.status]||p.status)} ・ ${new Date(p.created_at).toLocaleString("ja-JP")}</div>
+        <div style="font-weight:800;margin:4px 0">${mEsc(p.title)}</div>
+        <div style="font-size:13.5px;white-space:pre-wrap">${mEsc(p.body)}</div>
+        ${p.handover?`<div style="font-size:12.5px;color:var(--sub);margin-top:4px">🤝 ${mEsc(p.handover)}</div>`:""}
+        ${p.report_count?`<div style="font-size:12.5px;color:var(--danger);margin-top:6px">⚑ 通報 ${p.report_count}件</div>`:""}
+        <div class="actions">
+          ${p.status!=="approved"?`<button class="primary" data-mact="approve" data-id="${mEsc(p.id)}">承認して公開</button>`:""}
+          ${p.status!=="rejected"?`<button class="danger" data-mact="reject" data-id="${mEsc(p.id)}">却下</button>`:""}
+        </div>
+      </div>`).join(""):`<div class="hint">対象の投稿はありません</div>`;
+  }catch(e){ $("#m_msg").textContent="⚠ "+e.message; }
+}
+document.querySelectorAll("[data-mstatus]").forEach(b=>b.onclick=()=>{mStatus=b.dataset.mstatus;mLoad();});
+$("#m_list").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-mact]"); if(!b) return;
+  if(b.dataset.mact==="reject" && !confirm("この投稿を却下しますか？（写真も削除されます）")) return;
+  b.disabled=true;
+  try{ await mFetch(`/api/admin/posts/${encodeURIComponent(b.dataset.id)}/${b.dataset.mact}`,{method:"POST"}); mLoad(); }
+  catch(err){ alert(err.message); b.disabled=false; }
+});
 
 loadConfig(); renderList(); initEmbed();
 </script>

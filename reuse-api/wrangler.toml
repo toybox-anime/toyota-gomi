@@ -1,0 +1,21 @@
+name = "gomi-reuse-api"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# 公開値のみ。秘密（ADMIN_TOKEN / TURNSTILE_SECRET / IP_SALT）は
+#   本番: npx wrangler secret put <NAME>
+#   ローカル: .dev.vars（gitに入れない）
+[vars]
+ALLOWED_ORIGINS = "https://toybox-anime.github.io,http://localhost:8777,http://127.0.0.1:8777"
+ALLOWED_CITIES = "toyota,chiryu"
+POST_TTL_DAYS = "14"
+REPORT_HIDE_THRESHOLD = "3"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gomi-reuse"
+database_id = "REPLACE_WITH_D1_ID"   # npx wrangler d1 create gomi-reuse の出力で置換
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "gomi-reuse-images"
