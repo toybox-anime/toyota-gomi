@@ -121,12 +121,12 @@
   function intro(showButtons) {
     const t = L();
     return `<div class="card rintro">
-      <div class="rh">♻️ ${esc(t.title)}</div>
+      <div class="rh">${esc(t.title)}</div>
       <div class="rlead">${esc(t.lead)}</div>
-      <details class="rrules"><summary>📋 ${esc(t.rulesH)}</summary><ul>${t.rules.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>
-      ${!READY ? `<div class="rnote">🚧 ${esc(t.notReady)}</div>` : showButtons ? `<div class="rbtns">
+      <details class="rrules"><summary>${esc(t.rulesH)}</summary><ul>${t.rules.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>
+      ${!READY ? `<div class="rnote">${esc(t.notReady)}</div>` : showButtons ? `<div class="rbtns">
         <button class="calbtn" data-act="post">${esc(t.post)}</button>
-        <button class="rghost" data-act="my">💬 ${esc(t.my)}</button></div>` : ""}
+        <button class="rghost" data-act="my">${esc(t.my)}</button></div>` : ""}
     </div>`;
   }
 
@@ -157,7 +157,7 @@
       const days = Math.max(0, Math.ceil((p.expires_at - Date.now()) / 86400000));
       return `<div class="card rcard">
         ${p.image ? `<img class="rimg" src="${esc(p.image)}" alt="" loading="lazy">` : ""}
-        <div class="rtop"><span class="chip" style="background:var(--brand)">${esc(t.cats[p.category] || p.category)}</span>
+        <div class="rtop"><span class="chip">${esc(t.cats[p.category] || p.category)}</span>
           <span class="rleft">${esc(t.left.replace("{n}", days))}</span></div>
         <div class="rtitle">${esc(p.title)}</div>
         <div class="rtext">${esc(p.body)}</div>
@@ -212,7 +212,7 @@
         const r = await api("/api/posts", { method: "POST", body: fd });
         const s = store.get(); s.posts.unshift({ id: r.id, token: r.ownerToken, title: form.title.value, at: Date.now() }); store.set(s);
         root().innerHTML = `<div class="card"><div class="rh">✅</div><div class="rlead">${esc(t.sent)}</div>
-          <div class="rbtns"><button class="calbtn" data-act="my">💬 ${esc(t.my)}</button><button class="rghost" data-act="list">${esc(t.back)}</button></div></div>`;
+          <div class="rbtns"><button class="calbtn" data-act="my">${esc(t.my)}</button><button class="rghost" data-act="list">${esc(t.back)}</button></div></div>`;
       } catch (err) {
         msg.textContent = errMsg(err);
         form.querySelector("button[type=submit]").disabled = false;
@@ -241,7 +241,7 @@
           body: JSON.stringify({ message: form.message.value, turnstile: tsToken }) });
         const s = store.get(); s.threads.unshift({ id: r.threadId, token: r.requesterToken, postId: p.id, title: p.title, at: Date.now() }); store.set(s);
         root().innerHTML = `<div class="card"><div class="rh">✅</div><div class="rlead">${esc(t.wantSent)}</div>
-          <div class="rbtns"><button class="calbtn" data-act="my">💬 ${esc(t.my)}</button><button class="rghost" data-act="list">${esc(t.back)}</button></div></div>`;
+          <div class="rbtns"><button class="calbtn" data-act="my">${esc(t.my)}</button><button class="rghost" data-act="list">${esc(t.back)}</button></div></div>`;
       } catch (err) {
         msg.textContent = errMsg(err);
         if (window.turnstile && tsWidget !== null) { window.turnstile.reset(tsWidget); tsToken = ""; }
@@ -259,7 +259,7 @@
 
   async function renderMy() {
     const t = L(), s = store.get();
-    let html = `<button class="rghost rback" data-act="list">${esc(t.back)}</button><div class="placenote">🔑 ${esc(t.device)}</div>`;
+    let html = `<button class="rghost rback" data-act="list">${esc(t.back)}</button><div class="placenote" style="margin:0 0 10px">${esc(t.device)}</div>`;
     if (!s.posts.length && !s.threads.length) { root().innerHTML = html + `<div class="card dnote">${esc(t.myEmpty)}</div>`; return; }
     root().innerHTML = html + `<div id="rMy" class="placenote">…</div>`;
     const parts = [];
@@ -306,7 +306,7 @@
       try { await api(`/api/posts/${encodeURIComponent(mp.id)}/close`, { method: "POST", headers: { "X-Token": mp.token } }); renderMy(); }
       catch (err) { alert(errMsg(err)); }
     }
-    if (["list","post","my","want"].includes(act)) window.scrollTo(0, document.getElementById("tabs").offsetTop);
+    if (["list","post","my","want"].includes(act)) window.scrollTo(0, 0);
   });
   document.addEventListener("submit", async e => {
     const f = e.target.closest("#reuseRoot form.rreply"); if (!f) return;

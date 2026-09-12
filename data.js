@@ -6,11 +6,11 @@
 const CITY = "愛知県豊田市";
 
 const CATEGORIES = {
-  moyasu:   { name: "燃やすごみ",             color: "#e5533c", icon: "🔥" },
-  plastic:  { name: "プラスチック製容器包装", color: "#e6a417", icon: "♳" },
-  shigen:   { name: "資源の日",               color: "#2f9e6e", icon: "♻️" },
-  kinzoku:  { name: "金属ごみ",               color: "#6b7280", icon: "🔩" },
-  umeru:    { name: "埋めるごみ",             color: "#8a5a2b", icon: "🪨" },
+  moyasu:   { name: "燃やすごみ",             color: "#d9412b", icon: "🔥" },
+  plastic:  { name: "プラスチック製容器包装", color: "#e3a008", icon: "♳" },
+  shigen:   { name: "資源の日",               color: "#2e6fd6", icon: "♻️" },
+  kinzoku:  { name: "金属ごみ",               color: "#5b6673", icon: "🔩" },
+  umeru:    { name: "埋めるごみ",             color: "#8b5a2b", icon: "🪨" },
 };
 
 // 自動生成: 豊田市公式「地区別資源・ごみの収集日」画像より (288自治区)

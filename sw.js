@@ -1,5 +1,5 @@
 // Service Worker — オフライン対応（アプリシェルをキャッシュ）
-const CACHE = "gomi-v7";
+const CACHE = "gomi-v8";
 const ASSETS = [
   "./",
   "./index.html",

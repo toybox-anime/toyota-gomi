@@ -8,7 +8,7 @@ const DICT_EXTRA = {
             note:{ja:"申込制・処理券が必要", en:"By request; fee sticker needed", pt:"Sob solicitação; selo necessário"} },
   kaden:  { icon:"📺", color:"#c0563a", ja:"家電リサイクル", en:"Appliance recycling",  pt:"Reciclagem de eletrodomésticos",
             note:{ja:"市では収集しない。販売店・指定引取場所へ", en:"Not collected by city; take to retailer", pt:"Não coletado; leve à loja"} },
-  shudan: { icon:"📦", color:"#3a7cc0", ja:"集団回収・拠点回収", en:"Community / drop-off", pt:"Coleta comunitária",
+  shudan: { icon:"📦", color:"#13877b", ja:"集団回収・拠点回収", en:"Community / drop-off", pt:"Coleta comunitária",
             note:{ja:"古紙・古布など。集団回収か拠点へ", en:"Paper/cloth: community or drop-off", pt:"Papel/tecido: coleta comunitária"} },
   none:   { icon:"⚠️", color:"#8a8f98", ja:"収集しない",     en:"Not collected",        pt:"Não coletado",
             note:{ja:"適正処理業者・専門店へ", en:"Take to a proper disposal service", pt:"Leve a serviço apropriado"} },

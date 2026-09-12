@@ -6,10 +6,10 @@ const PLACES = {
   station: { icon:"🗑️", color:"#5b6470",
     label:{ja:"分別ごみステーション", en:"Sorted-waste station", pt:"Estação de lixo", easy:"ごみ ステーション"},
     note:{ja:"収集日に、地区の集積所へ", en:"To your local spot on the collection day", pt:"No ponto local no dia da coleta", easy:"あつめる ひ に ちくの ばしょへ"} },
-  shigen: { icon:"♻️", color:"#2f9e6e",
+  shigen: { icon:"♻️", color:"#2e6fd6",
     label:{ja:"資源ステーション", en:"Resource station", pt:"Estação de recursos", easy:"しげん ステーション"},
     note:{ja:"資源の日に。有害・危険ごみもここ", en:"On resource day; also hazardous items", pt:"No dia de recursos; e perigosos", easy:"しげんの ひ に。あぶない ものも ここ"} },
-  recycle: { icon:"📦", color:"#3a7cc0",
+  recycle: { icon:"📦", color:"#13877b",
     label:{ja:"リサイクルステーション（常設拠点）", en:"Recycling station (drop-off)", pt:"Estação de reciclagem (ponto fixo)", easy:"リサイクル ステーション（いつでも）"},
     note:{ja:"古紙・古布等を持込。年中無休 10:00〜18:00（年末年始除く）", en:"Drop off paper/cloth. Daily 10:00–18:00", pt:"Leve papel/tecido. Diário 10h–18h", easy:"かみ・ぬのを もっていく。まいにち 10〜18じ"} },
   apply: { icon:"📞", color:"#7c5cbf",
@@ -100,7 +100,7 @@ const GUIDE = [
 
   // ---- 収集日カテゴリ外（分かりにくいポイント）----
   { key:"kosi", name:{ja:"古紙・古布（ダンボール等）", en:"Paper & cloth (cardboard)", pt:"Papel e tecido", easy:"かみ・ぬの（ダンボール）"},
-    color:"#3a7cc0", icon:"📦", place:"recycle",
+    color:"#13877b", icon:"📦", place:"recycle",
     desc:{ja:"ダンボール・新聞・雑誌・雑紙・紙パック・古布。ごみステーションでは回収しません。",
       en:"Cardboard, newspaper, magazines, cartons, cloth. NOT collected at waste stations.",
       pt:"Papelão, jornal, revistas, cartões, tecidos. NÃO coletado nas estações de lixo.",
