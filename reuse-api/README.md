@@ -25,7 +25,7 @@
    ▼
 Cloudflare Worker  src/index.js
    ├─ D1（SQLite）  schema.sql … 投稿・スレッド・メッセージ・通報
-   ├─ R2            …… 写真
+   ├─ KV            …… 写真（60日で自動削除。カード登録不要）
    └─ Turnstile     …… ボット判定
 市職員 → admin.html「⑤ ゆずります掲示板の承認」→ /api/admin/*（管理トークン）
 ```
@@ -41,7 +41,7 @@ Cloudflare Worker  src/index.js
 | POST | `/api/posts/:id/report` | 通報 |
 | POST | `/api/posts/:id/threads` | 受け取り希望 → `requesterToken` を返す |
 | GET/POST | `/api/threads/:id` `/messages` | 非公開メッセージ（投稿者か希望者の鍵） |
-| GET | `/img/:key` | 写真 |
+| GET | `/img/:key` | 写真（KV） |
 | GET | `/api/admin/posts?status=pending\|reported\|approved` | 管理：一覧 |
 | POST | `/api/admin/posts/:id/approve\|reject` | 管理：承認・却下（却下で写真も削除） |
 
@@ -64,35 +64,32 @@ IP_SALT=dev-salt
 アプリ側は `http://127.0.0.1:8777/index.html?reuseApi=http://127.0.0.1:8787` で開く
 （`?reuseApi=` の上書きは localhost のときだけ有効）。
 
-## 本番デプロイ（アカウント作成・ログインは本人が行う）
+## 本番環境（2026-09 構築済み）
 
-1. Cloudflare のアカウントを作成（無料）
-2. `npx wrangler login`
-3. `npx wrangler d1 create gomi-reuse` → 出力の `database_id` を `wrangler.toml` に貼る
-4. `npx wrangler d1 execute gomi-reuse --remote --file=schema.sql`
-5. `npx wrangler r2 bucket create gomi-reuse-images`
-6. Cloudflare ダッシュボード → Turnstile → ウィジェット追加（ホスト名 `toybox-anime.github.io`）→ サイトキーとシークレットを控える
-7. 秘密値を登録（値は各自で決める。管理トークンは長いランダム文字列に）
-   ```bash
-   npx wrangler secret put TURNSTILE_SECRET
-   npx wrangler secret put ADMIN_TOKEN
-   npx wrangler secret put IP_SALT
+- API: `https://gomi-reuse-api.reuse-api.workers.dev`
+- D1: `gomi-reuse`（APAC）／ KV: `IMAGES`（写真。R2はカード登録が要るため不採用）
+- Turnstile: ウィジェット `gomi-reuse`（ホスト名 `toybox-anime.github.io`）
+
+### 作り直す・別の市に立てるとき
+
+1. Cloudflareアカウント作成（本人）→ `npx wrangler login`（ブラウザで許可）
+2. `npx wrangler d1 create gomi-reuse` → `database_id` を `wrangler.toml` に
+3. `npx wrangler d1 execute gomi-reuse --remote --file=schema.sql`
+4. `npx wrangler kv namespace create IMAGES` → `id` を `wrangler.toml` に
+5. `npx wrangler deploy`
+6. 秘密の登録は本人のPCで次を実行（Turnstile作成と秘密3つの自動生成・登録を行い、秘密は画面に出さない。管理トークンは「ドキュメント\gomi-admin-token.txt」に保存）
    ```
-8. `npx wrangler deploy` → `https://gomi-reuse-api.<アカウント>.workers.dev` が出る
-9. アプリの `config.js` に設定して push
-   ```js
-   reuseApi: "https://gomi-reuse-api.<アカウント>.workers.dev",
-   turnstileSiteKey: "<手順6のサイトキー>",
+   powershell -ExecutionPolicy Bypass -File setup-secrets.ps1
    ```
+7. 表示された SITEKEY と API のURLをアプリの `config.js`（`reuseApi` / `turnstileSiteKey`）に設定して push
 
 ## 費用の目安
 
-Workers・D1・R2・Turnstile はいずれも無料枠がある（Workers 1日10万リクエスト、D1 5GB、R2 10GB など。**最新の条件は Cloudflare の料金ページで確認**）。
+Workers・D1・KV・Turnstile はいずれも無料枠がある（Workers 1日10万リクエスト、D1 5GB、KV 1GB・書き込み1日1,000件 など。**最新の条件は Cloudflare の料金ページで確認**）。
 1市の掲示板規模なら無料枠に収まる見込み。
 
 ## 次の段階（未実装）
 
 - 管理画面を Cloudflare Access（メールのワンタイムコード）で保護（今は管理トークンのみ）
-- 期限切れ・譲渡済の写真を定期削除（Cron Trigger）
 - 事業者の余剰品（フードロス）枠：食品衛生の責任分界を決めてから
 - 写真判定の Claude Vision 化を同じ Worker に相乗り

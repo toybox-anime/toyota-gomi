@@ -13,8 +13,8 @@ const CONFIG = {
   dataUpdated: "2024年度版",     // データの版（毎年更新）
   // ---- リユース掲示板（ゆずります）----
   cityId: "toyota",              // APIの city 識別子
-  reuseApi: "",                  // Worker のURL（例 https://gomi-reuse-api.xxx.workers.dev）。空なら「準備中」表示
-  turnstileSiteKey: "",          // Cloudflare Turnstile のサイトキー（公開値）
+  reuseApi: "https://gomi-reuse-api.reuse-api.workers.dev",   // Worker のURL。空なら「準備中」表示
+  turnstileSiteKey: "0x4AAAAAAExf5RIFYt4U9_Bn",               // Cloudflare Turnstile のサイトキー（公開値）
 };
 
 // ===== 多言語辞書 =====

@@ -14,8 +14,9 @@ REPORT_HIDE_THRESHOLD = "3"
 [[d1_databases]]
 binding = "DB"
 database_name = "gomi-reuse"
-database_id = "REPLACE_WITH_D1_ID"   # npx wrangler d1 create gomi-reuse の出力で置換
+database_id = "2e8eb906-0ca8-471f-a81e-f9fe3a947273"
 
-[[r2_buckets]]
+# 写真はKV（カード登録不要）。60日で自動削除
+[[kv_namespaces]]
 binding = "IMAGES"
-bucket_name = "gomi-reuse-images"
+id = "3ea7d440a5294994a8dc5d68734a66a7"

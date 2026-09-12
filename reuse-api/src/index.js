@@ -1,4 +1,4 @@
-// ===== リユース掲示板 API（Cloudflare Worker + D1 + R2）=====
+// ===== リユース掲示板 API（Cloudflare Worker + D1 + KV）=====
 // 公開: 一覧/詳細/投稿/受け取り希望/メッセージ/通報/画像
 // 管理: 承認待ち一覧/承認/却下（Authorization: Bearer ADMIN_TOKEN）
 
@@ -7,6 +7,7 @@ const MAX_IMAGE = 2 * 1024 * 1024;
 const HOUR = 3600 * 1000;
 const LIMIT_POSTS_PER_HOUR = 5;
 const LIMIT_MSGS_PER_HOUR = 30;
+const IMAGE_TTL_SEC = 60 * 24 * 3600;
 
 class HttpError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
@@ -83,7 +84,7 @@ async function createPost(req, env) {
   const handover = text(fd.get("handover") || "", 0, 100, "handover");
   checkPublicText([title, body, handover]);
 
-  const ipHash = await sha(ip + (env.IP_SALT || "gomi-reuse"));
+  const ipHash = await sha(ip + salt(env));
   const now = Date.now();
   const recent = await env.DB.prepare(`SELECT COUNT(*) AS c FROM posts WHERE ip_hash = ? AND created_at > ?`)
     .bind(ipHash, now - HOUR).first();
@@ -97,7 +98,8 @@ async function createPost(req, env) {
     const kind = sniffImage(new Uint8Array(buf));
     if (!kind) bad("image_type", "unsupported image");
     imageKey = `${crypto.randomUUID()}.${kind.ext}`;
-    await env.IMAGES.put(imageKey, buf, { httpMetadata: { contentType: kind.type } });
+    // 写真は60日で自動削除（公開は承認から14日なので十分な余裕）
+    await env.IMAGES.put(imageKey, buf, { metadata: { contentType: kind.type }, expirationTtl: IMAGE_TTL_SEC });
   }
 
   const id = crypto.randomUUID();
@@ -137,7 +139,7 @@ async function reportPost(req, env, id) {
   const { reason = "" } = await readJson(req);
   const post = await env.DB.prepare(`SELECT status FROM posts WHERE id = ?`).bind(id).first();
   if (!post) throw new HttpError(404, "not_found", "post not found");
-  const ipHash = await sha(clientIp(req) + (env.IP_SALT || "gomi-reuse"));
+  const ipHash = await sha(clientIp(req) + salt(env));
   await env.DB.prepare(`INSERT OR IGNORE INTO reports (id, post_id, ip_hash, reason, created_at) VALUES (?, ?, ?, ?, ?)`)
     .bind(crypto.randomUUID(), id, ipHash, String(reason).slice(0, 200), Date.now()).run();
   const { c } = await env.DB.prepare(`SELECT COUNT(*) AS c FROM reports WHERE post_id = ?`).bind(id).first();
@@ -184,20 +186,22 @@ async function postMessage(req, env, threadId) {
 }
 
 async function serveImage(env, key) {
-  const obj = await env.IMAGES.get(key);
-  if (!obj) throw new HttpError(404, "not_found", "image not found");
-  return new Response(obj.body, { headers: {
-    "Content-Type": (obj.httpMetadata && obj.httpMetadata.contentType) || "application/octet-stream",
-    "Cache-Control": "public, max-age=86400",
+  const { value, metadata } = await env.IMAGES.getWithMetadata(key, { type: "arrayBuffer" });
+  if (!value) throw new HttpError(404, "not_found", "image not found");
+  return new Response(value, { headers: {
+    "Content-Type": (metadata && metadata.contentType) || "application/octet-stream",
+    // 却下した写真が長く残らないよう、ブラウザのキャッシュは1時間まで
+    "Cache-Control": "public, max-age=3600",
     "X-Content-Type-Options": "nosniff",
   } });
 }
 
 // ---------- 管理API ----------
 async function admin(req, env, url) {
-  if (!env.ADMIN_TOKEN) throw new HttpError(500, "config", "admin not configured");
-  const auth = req.headers.get("Authorization") || "";
-  if (auth !== `Bearer ${env.ADMIN_TOKEN}`) throw new HttpError(401, "auth", "unauthorized");
+  const adminToken = String(env.ADMIN_TOKEN || "").trim();
+  if (!adminToken) throw new HttpError(500, "config", "admin not configured");
+  const auth = (req.headers.get("Authorization") || "").trim();
+  if (auth !== `Bearer ${adminToken}`) throw new HttpError(401, "auth", "unauthorized");
   const p = url.pathname;
   let r;
   if (req.method === "GET" && p === "/api/admin/posts") {
@@ -255,7 +259,7 @@ async function requireToken(req, hash) {
 }
 
 async function rateMessages(env, ip) {
-  const ipHash = await sha(ip + (env.IP_SALT || "gomi-reuse"));
+  const ipHash = await sha(ip + salt(env));
   const { c } = await env.DB.prepare(`SELECT COUNT(*) AS c FROM messages WHERE ip_hash = ? AND created_at > ?`)
     .bind(ipHash, Date.now() - HOUR).first();
   if (c >= LIMIT_MSGS_PER_HOUR) throw new HttpError(429, "rate", "too many messages");
@@ -264,11 +268,12 @@ async function rateMessages(env, ip) {
 
 async function verifyTurnstile(env, tokenValue, ip) {
   if (env.DEV_SKIP_TURNSTILE === "1") return;
-  if (!env.TURNSTILE_SECRET) throw new HttpError(500, "config", "turnstile not configured");
+  const secret = String(env.TURNSTILE_SECRET || "").trim();
+  if (!secret) throw new HttpError(500, "config", "turnstile not configured");
   if (!tokenValue) throw new HttpError(400, "turnstile", "bot check required");
   const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
     method: "POST",
-    body: new URLSearchParams({ secret: env.TURNSTILE_SECRET, response: String(tokenValue), remoteip: ip }),
+    body: new URLSearchParams({ secret, response: String(tokenValue), remoteip: ip }),
   });
   const d = await r.json();
   if (!d.success) throw new HttpError(403, "turnstile", "bot check failed");
@@ -318,6 +323,7 @@ function corsHeaders(env, origin) {
 }
 const cities = env => String(env.ALLOWED_CITIES || "").split(",").map(s => s.trim());
 const ttl = env => Number(env.POST_TTL_DAYS || 14) * 24 * HOUR;
+const salt = env => String(env.IP_SALT || "gomi-reuse").trim();
 const clientIp = req => req.headers.get("CF-Connecting-IP") || "0.0.0.0";
 function token() {
   const b = new Uint8Array(24); crypto.getRandomValues(b);
