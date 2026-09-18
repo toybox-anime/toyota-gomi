@@ -273,6 +273,28 @@ function textOn(hex){
   return 1.05/(L+.05) >= 3 ? "#ffffff" : "#1a1d1b";
 }
 
+// ===== 匿名の利用集計（効果ダッシュボード用）=====
+// 送るのは「種類とキー」だけ。Do Not Track / GPC が有効なら送らない。
+// ローカル検証は ?reuseApi= を付けたときだけ送る（本番の数字を汚さない）。
+const EV_LOCAL = ["localhost","127.0.0.1"].includes(location.hostname);
+const EV_API = ((EV_LOCAL ? new URLSearchParams(location.search).get("reuseApi") : CONFIG.reuseApi) || "").replace(/\/$/, "");
+const EV_OFF = !EV_API || !CONFIG.cityId || navigator.doNotTrack === "1" || navigator.globalPrivacyControl === true;
+let evQ = [], evTimer = null;
+function track(kind, key){
+  if (EV_OFF || key == null || key === "") return;
+  evQ.push([kind, String(key).slice(0, 40)]);
+  clearTimeout(evTimer); evTimer = setTimeout(flushEv, 2000);
+}
+function flushEv(){
+  clearTimeout(evTimer);
+  if (!evQ.length) return;
+  const body = JSON.stringify({ city: CONFIG.cityId, ev: evQ.splice(0, 10) });
+  fetch(EV_API + "/api/ev", { method:"POST", headers:{ "Content-Type":"text/plain" }, body, keepalive:true }).catch(()=>{});
+  if (evQ.length) flushEv();
+}
+addEventListener("pagehide", flushEv);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushEv(); });
+
 // ブランド適用
 document.documentElement.style.setProperty("--brand", CONFIG.brandColor);
 document.documentElement.style.setProperty("--brand-d", CONFIG.brandColorDark);
@@ -407,13 +429,14 @@ function render(){
 
   $("#footer").innerHTML =
     `${CONFIG.cityShort}公式データ（${CONFIG.dataUpdated}・全${DISTRICTS.length}自治区）`+
-    `<br><a href="${CONFIG.officialUrl}" target="_blank" rel="noopener">${CONFIG.cityShort} 公式ごみ情報 ↗</a>`;
+    `<br><a href="${CONFIG.officialUrl}" target="_blank" rel="noopener">${CONFIG.cityShort} 公式ごみ情報 ↗</a>`+
+    (EV_OFF ? "" : `<br><span style="font-size:11px">${T().privacy}</span>`);
 
   // カレンダー通知ボタン
   const btn = $("#calBtn");
   btn.className = "calbtn";
   btn.textContent = T().cal;
-  btn.onclick = () => { downloadICS(d); btn.className = "calbtn done"; btn.textContent = "✓ " + T().calDone; };
+  btn.onclick = () => { downloadICS(d); track("ics", d.area); btn.className = "calbtn done"; btn.textContent = "✓ " + T().calDone; };
 }
 
 // ===== カレンダー(.ics)生成：繰り返し予定＋前日20時アラーム =====
@@ -471,14 +494,14 @@ function fold(s){
 }
 function renderDict(q){
   const box=$("#dictResults"); q=(q||"").trim();
-  if(!q){ box.innerHTML=""; return; }
+  if(!q){ box.innerHTML=""; return null; }
   const fq=fold(q);
   const lk=(LANG==="en"||LANG==="pt")?LANG:"ja";
   const hits=DICT.filter(it=>{
     const fields=[it.ja,it.yomi,it.en,it.pt, ...(typeof SYNONYMS!=="undefined"&&SYNONYMS[it.ja]||[])];
     return fields.some(f=>f && fold(f).includes(fq));
   }).slice(0,25);
-  if(!hits.length){ box.innerHTML=`<div class="dnote" style="padding:10px 0">${T().dictNone}</div>`; return; }
+  if(!hits.length){ box.innerHTML=`<div class="dnote" style="padding:10px 0">${T().dictNone}</div>`; return false; }
   box.innerHTML = hits.map(it=>{
     const c=dictCatInfo(it.cat);
     const name = it[LANG] || it.ja;
@@ -489,8 +512,18 @@ function renderDict(q){
       <span class="chip" style="--c:${c.color}">${c.icon} ${c.label}</span>
     </div>`;
   }).join("");
+  return hits[0];
 }
-$("#dictSearch").addEventListener("input", e=>renderDict(e.target.value));
+// 入力が止まってから1回だけ数える（1文字ずつ数えない）
+let dictTimer=null, dictLast="";
+$("#dictSearch").addEventListener("input", e=>{
+  const q=e.target.value, r=renderDict(q);
+  clearTimeout(dictTimer);
+  dictTimer=setTimeout(()=>{
+    const fq=fold(q.trim()); if(fq.length<2 || fq===dictLast) return; dictLast=fq;
+    if(r) track("dict_hit", r.ja); else if(r===false) track("dict_miss", fq.slice(0,24));
+  }, 1500);
+});
 
 // ===== 分別ガイド（出す場所の軸で見える化）=====
 function renderGuide(){
@@ -518,7 +551,8 @@ function renderGuide(){
 
 // ===== 下のメニュー（タブ）=====
 const tabbar=$("#tabs");
-tabbar.querySelectorAll("button").forEach(b=>b.onclick=()=>{
+tabbar.querySelectorAll("button").forEach(b=>b.onclick=(e)=>{
+  if(e && e.isTrusted) track("tab", b.dataset.v);
   tabbar.querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-current", x===b?"page":"false"); });
   const v=b.dataset.v;
   $("#viewSchedule").hidden=(v!=="schedule");
@@ -554,8 +588,8 @@ function resolvePhoto(label){
     if(m.kw.some(k=>label.includes(k))){
       if(m.item){ const it=DICT.find(d=>d.ja===m.item); if(it){ const info=dictCatInfo(it.cat);
         const note=it.note?(it.note[lk]||it.note.ja):(DICT_EXTRA[it.cat]?(DICT_EXTRA[it.cat].note[lk]||DICT_EXTRA[it.cat].note.ja):"");
-        return {info, name:(it[LANG]||it.ja), note}; } }
-      if(m.cat){ const info=dictCatInfo(m.cat); return {info, name:(m.label?(m.label[lk]||m.label.ja):info.label), note:""}; }
+        return {info, name:(it[LANG]||it.ja), note, key:it.ja}; } }
+      if(m.cat){ const info=dictCatInfo(m.cat); return {info, name:(m.label?(m.label[lk]||m.label.ja):info.label), note:"", key:(m.label?m.label.ja:m.cat)}; }
     }
   }
   return null;
@@ -573,6 +607,7 @@ $("#photoInput").addEventListener("change", async e=>{
     $("#photoStatus").textContent="";
     let hit=null, used=null;
     for(const p of preds){ const r=resolvePhoto(p.className.toLowerCase()); if(r){ hit=r; used=p; break; } }
+    track("photo", hit?"hit":"miss"); if(hit) track("photo_item", hit.key);
     const alt=preds.slice(0,3).map(p=>`${p.className.split(",")[0]} ${Math.round(p.probability*100)}%`).join(" ・ ");
     if(hit){
       $("#photoResult").insertAdjacentHTML("beforeend",`
@@ -599,6 +634,15 @@ if(!sel.value && DISTRICTS[0]) sel.value=DISTRICTS[0].id;
 render();
 // 初回は地区選びから
 if(firstRun){ $("#dHint").hidden=false; setPanel(true); }
+
+// 利用者数の目安：1端末1日1回だけ「開いた」を数える（地区は選んだ人だけ）
+(function countOpen(){
+  const today=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Tokyo"});
+  try{ if(localStorage.getItem("evDay")===today) return; localStorage.setItem("evDay",today); }catch(e){ return; }
+  track("open", LANG);
+  const d=DISTRICTS.find(x=>x.id===localStorage.getItem("district"));
+  if(d && !firstRun) track("area", d.area);
+})();
 
 // PWA: Service Worker 登録（オフライン対応・ホーム画面追加）
 if("serviceWorker" in navigator){

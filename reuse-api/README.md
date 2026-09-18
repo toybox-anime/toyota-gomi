@@ -44,6 +44,8 @@ Cloudflare Worker  src/index.js
 | GET | `/img/:key` | 写真（KV） |
 | GET | `/api/admin/posts?status=pending\|reported\|approved` | 管理：一覧 |
 | POST | `/api/admin/posts/:id/approve\|reject` | 管理：承認・却下（却下で写真も削除） |
+| POST | `/api/ev` | 匿名の利用集計（種類とキーだけ。1回線1日500件まで）|
+| GET | `/api/admin/stats?city=toyota&days=30` | 管理：効果ダッシュボード（stats.html）用の集計 |
 
 ## ローカルで動かす（Cloudflareアカウント不要）
 

@@ -48,3 +48,20 @@ CREATE TABLE IF NOT EXISTS reports (
   created_at INTEGER NOT NULL,
   UNIQUE(post_id, ip_hash)
 );
+
+-- 効果ダッシュボード用の匿名集計（日×種類×キーの件数だけ。個人・端末は記録しない）
+CREATE TABLE IF NOT EXISTS stats (
+  day  TEXT NOT NULL,                  -- JST の YYYY-MM-DD
+  city TEXT NOT NULL,
+  kind TEXT NOT NULL,                  -- open / area / dict_hit / dict_miss / photo / photo_item / ics / tab
+  key  TEXT NOT NULL,
+  n    INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, city, kind, key)
+);
+-- 集計の水増し対策（IPはソルト付きハッシュ。日ごとの件数だけ）
+CREATE TABLE IF NOT EXISTS ev_rate (
+  day     TEXT NOT NULL,
+  ip_hash TEXT NOT NULL,
+  n       INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, ip_hash)
+);

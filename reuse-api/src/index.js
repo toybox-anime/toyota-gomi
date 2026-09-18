@@ -44,6 +44,7 @@ async function route(req, env, url) {
   if ((r = p.match(/^\/api\/threads\/([\w-]{8,64})$/)) && m === "GET") return getThread(req, env, r[1]);
   if ((r = p.match(/^\/api\/threads\/([\w-]{8,64})\/messages$/)) && m === "POST") return postMessage(req, env, r[1]);
   if ((r = p.match(/^\/img\/([\w-]{8,64}\.(?:jpg|png|webp))$/)) && m === "GET") return serveImage(env, r[1]);
+  if (m === "POST" && p === "/api/ev") return recordEvents(req, env);
   if (p.startsWith("/api/admin/")) return admin(req, env, url);
   throw new HttpError(404, "not_found", "not found");
 }
@@ -196,6 +197,82 @@ async function serveImage(env, key) {
   } });
 }
 
+// ---------- 匿名の利用集計（効果ダッシュボード用）----------
+// 送るのは「種類とキー」だけ。端末ID・IP・自由文の検索語全文は保存しない（見つからなかった語は24字まで）。
+const EV_KINDS = {
+  open: /^(ja|en|pt|easy)$/,           // 1端末1日1回。キー=言語
+  area: /^.{1,24}$/u,                  // 地区（自治区のグループ）
+  dict_hit: /^.{1,40}$/u,              // 辞典で見つかった品目
+  dict_miss: /^.{2,24}$/u,             // 辞典で見つからなかった言葉
+  photo: /^(hit|miss)$/,
+  photo_item: /^.{1,40}$/u,
+  ics: /^.{1,24}$/u,                   // カレンダー登録（キー=地区）
+  tab: /^(schedule|guide|reuse)$/,
+};
+const EV_MAX_PER_REQ = 10;
+const EV_MAX_PER_DAY = 500;
+const jstDay = (t = Date.now()) => new Date(t + 9 * HOUR).toISOString().slice(0, 10);
+
+async function recordEvents(req, env) {
+  // text/plain で受ける（ブラウザの事前確認リクエストを省いて軽くする）
+  let d;
+  try { d = JSON.parse(await req.text()); } catch { bad("json", "invalid json"); }
+  const city = String(d && d.city || "");
+  if (!cities(env).includes(city)) bad("city");
+  const evs = (Array.isArray(d.ev) ? d.ev : []).slice(0, EV_MAX_PER_REQ).map(e => {
+    if (!Array.isArray(e)) return null;
+    const kind = String(e[0]), key = String(e[1] == null ? "" : e[1]).normalize("NFKC")
+      .replace(/[ -]/g, "").trim();
+    return EV_KINDS[kind] && EV_KINDS[kind].test(key) ? [kind, key] : null;
+  }).filter(Boolean);
+  if (!evs.length) return new Response(null, { status: 204 });
+
+  const day = jstDay();
+  const ipHash = await sha(clientIp(req) + salt(env));
+  const rate = await env.DB.prepare(
+    `INSERT INTO ev_rate (day, ip_hash, n) VALUES (?, ?, ?)
+     ON CONFLICT(day, ip_hash) DO UPDATE SET n = n + excluded.n RETURNING n`
+  ).bind(day, ipHash, evs.length).first();
+  if (rate && rate.n > EV_MAX_PER_DAY) return new Response(null, { status: 204 });
+
+  await env.DB.batch(evs.map(([kind, key]) => env.DB.prepare(
+    `INSERT INTO stats (day, city, kind, key, n) VALUES (?, ?, ?, ?, 1)
+     ON CONFLICT(day, city, kind, key) DO UPDATE SET n = n + 1`
+  ).bind(day, city, kind, key)));
+  return new Response(null, { status: 204 });
+}
+
+async function adminStats(env, url) {
+  const city = url.searchParams.get("city") || "";
+  if (!cities(env).includes(city)) bad("city");
+  const days = Math.min(Math.max(parseInt(url.searchParams.get("days"), 10) || 30, 1), 366);
+  const since = Date.now() - (days - 1) * 24 * HOUR;
+  const from = jstDay(since);
+  // 投稿は作成時刻(UTCミリ秒)なので、JSTのその日0時にそろえる
+  const sinceMs = Date.parse(from + "T00:00:00+09:00");
+
+  const [rows, series, reuse, threads] = await env.DB.batch([
+    env.DB.prepare(`SELECT kind, key, SUM(n) AS n FROM stats WHERE city = ? AND day >= ?
+                     GROUP BY kind, key ORDER BY n DESC`).bind(city, from),
+    env.DB.prepare(`SELECT day, kind, SUM(n) AS n FROM stats WHERE city = ? AND day >= ?
+                     AND kind IN ('open','dict_hit','dict_miss','photo') GROUP BY day, kind ORDER BY day`).bind(city, from),
+    env.DB.prepare(`SELECT status, category, COUNT(*) AS n FROM posts WHERE city = ? AND created_at >= ?
+                     GROUP BY status, category`).bind(city, sinceMs),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM threads t JOIN posts p ON p.id = t.post_id
+                     WHERE p.city = ? AND t.created_at >= ?`).bind(city, sinceMs),
+  ]);
+  const totals = {}, top = {};
+  for (const r of rows.results) {
+    totals[r.kind] = (totals[r.kind] || 0) + r.n;
+    (top[r.kind] = top[r.kind] || []).length < 30 && top[r.kind].push([r.key, r.n]);
+  }
+  return json({
+    city, days, from, to: jstDay(), totals, top,
+    series: series.results,
+    reuse: { rows: reuse.results, threads: (threads.results[0] || {}).n || 0 },
+  });
+}
+
 // ---------- 管理API ----------
 async function admin(req, env, url) {
   const adminToken = String(env.ADMIN_TOKEN || "").trim();
@@ -204,6 +281,7 @@ async function admin(req, env, url) {
   if (auth !== `Bearer ${adminToken}`) throw new HttpError(401, "auth", "unauthorized");
   const p = url.pathname;
   let r;
+  if (req.method === "GET" && p === "/api/admin/stats") return adminStats(env, url);
   if (req.method === "GET" && p === "/api/admin/posts") {
     const status = url.searchParams.get("status") || "pending";
     const where = status === "reported" ? "report_count > 0" : "status = ?";
