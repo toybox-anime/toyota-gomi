@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#2f9e6e">
+<meta name="theme-color" content="#f2f4f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1311" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -35,66 +36,66 @@
   .num{font-variant-numeric:tabular-nums}
   svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
-  /* ===== ヘッダ（市のブランド色・細く） ===== */
-  .topbar{background:var(--brand);color:var(--on-brand);padding:calc(env(safe-area-inset-top) + 10px) 16px 12px}
-  .topbar .inner{max-width:600px;margin:0 auto;display:flex;align-items:center;gap:11px}
-  .logo{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.18);display:grid;place-items:center;font-size:20px;flex:none}
-  .brand-t{flex:1;min-width:0}
-  .brand-t h1{font-size:16px;line-height:1.3;margin:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .brand-t .city{font-size:12px;opacity:.85}
-  .lang{position:relative;flex:none}
-  .lang select{appearance:none;-webkit-appearance:none;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.14);
-    color:var(--on-brand);font-size:13px;font-weight:700;padding:7px 28px 7px 12px;border-radius:999px;max-width:150px}
-  .lang select option{color:#15201b;background:#fff}
-  .lang::after{content:"";position:absolute;right:12px;top:50%;width:6px;height:6px;border-right:2px solid currentColor;
-    border-bottom:2px solid currentColor;transform:translateY(-70%) rotate(45deg);pointer-events:none;color:var(--on-brand)}
+  /* ===== ヘッダ（白地で細く。ブランド色はロゴと強調だけ） ===== */
+  .topbar{padding:calc(env(safe-area-inset-top) + 12px) 16px 2px}
+  .topbar .inner{max-width:600px;margin:0 auto;display:flex;align-items:center;gap:10px}
+  .logo{width:34px;height:34px;border-radius:10px;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;flex:none;overflow:hidden}
+  .logo svg.i{width:20px;height:20px}
+  .logo img{width:100%;height:100%;object-fit:cover}
+  .brand-t{flex:1;min-width:0;line-height:1.25}
+  .brand-t h1{font-size:15px;margin:0;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand-t .city{font-size:11.5px;color:var(--sub)}
+  .lang{position:relative;flex:none;display:flex;align-items:center;color:var(--sub)}
+  .lang svg.i{position:absolute;left:10px;width:16px;height:16px;pointer-events:none}
+  .lang select{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:var(--card);color:var(--text);
+    font-size:13px;font-weight:700;padding:7px 13px 7px 31px;border-radius:999px;max-width:140px}
 
-  .wrap{max-width:600px;margin:0 auto;padding:14px 16px 8px}
+  .wrap{max-width:600px;margin:0 auto;padding:6px 16px 8px}
 
-  /* ===== 地区（普段は1行にたたむ） ===== */
-  .district{width:100%;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
-    border-radius:var(--r-md);padding:11px 14px;text-align:left;box-shadow:var(--shadow);margin-bottom:12px}
-  .district .i{color:var(--brand)}
-  .district .dt{flex:1;min-width:0;line-height:1.35}
-  .district .dn{display:block;font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .district .da{display:block;font-size:12px;color:var(--sub)}
-  .district .chg{font-size:13px;font-weight:700;color:var(--brand);flex:none}
-  .dpanel{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:12px;margin:-4px 0 12px;box-shadow:var(--shadow)}
+  /* ===== 地区（小さく1行。押すと検索） ===== */
+  .district{display:flex;align-items:baseline;gap:6px;width:100%;background:none;border:none;padding:8px 2px;margin:0 0 4px;text-align:left}
+  .district svg.i{width:17px;height:17px;color:var(--brand);align-self:center}
+  .district .dn{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .district .da{font-size:12.5px;color:var(--sub);white-space:nowrap}
+  .district .chg{font-size:13px;font-weight:700;color:var(--brand);margin-left:auto;padding-left:8px;white-space:nowrap}
+  .dpanel{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:12px;margin:0 0 12px;box-shadow:var(--shadow)}
   .dpanel .hint{font-size:13.5px;font-weight:700;margin:0 0 8px}
-  .dpanel input,.dpanel select{display:block;width:100%;padding:12px;font-size:16px;border:1px solid var(--line);
-    border-radius:var(--r-sm);background:var(--soft);margin:0 0 8px}
+  .dpanel select{display:block;width:100%;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--soft);margin:0 0 8px}
+  .sbox{position:relative;margin:0 0 8px}
+  .sbox svg.i{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--sub);pointer-events:none}
+  .sbox input{display:block;width:100%;padding:12px 12px 12px 40px;font-size:16px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--soft);margin:0}
   #count{font-size:12px;color:var(--sub);text-align:right}
 
-  /* ===== 今日・明日（主役） ===== */
-  .hero{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
-  .day{padding:14px 16px}
-  .day + .day{border-top:1px solid var(--line)}
-  .dlabel{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
-  .dlabel b{font-size:15px;font-weight:800}
-  .dlabel span{font-size:13px;color:var(--sub)}
-  .tiles{display:flex;flex-wrap:wrap;gap:8px}
-  .tile{display:flex;align-items:center;gap:10px;flex:1 1 auto;background:var(--c);color:var(--on,#fff);
-    border-radius:var(--r-md);padding:13px 16px;font-size:19px;font-weight:800;line-height:1.25}
-  .tile .ic{font-size:24px;line-height:1}
-  .tile.sm{flex:0 1 auto;padding:8px 12px;font-size:14.5px;border-radius:var(--r-sm)}
-  .tile.sm .ic{font-size:17px}
-  .none{font-size:15px;color:var(--sub);font-weight:700}
+  /* ===== 次のごみの日（主役：いつ開いても答えが1つ） ===== */
+  .hero{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:18px 18px 16px;margin-bottom:12px}
+  .hlabel{font-size:13px;font-weight:700;color:var(--sub)}
+  .hdate{font-size:34px;font-weight:800;line-height:1.2;margin:2px 0 0;letter-spacing:-.01em}
+  .hdate.long{font-size:27px}
+  .hdate .hmd{font-size:17px;font-weight:700;color:var(--sub);margin-left:8px;letter-spacing:0}
+  .hsub{font-size:14px;font-weight:800;color:var(--brand);margin-top:2px}
+  .tiles{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+  .tile{display:flex;align-items:center;gap:14px;background:var(--c);color:var(--on,#fff);border-radius:16px;padding:15px 18px}
+  .tile svg.i{width:30px;height:30px;stroke-width:1.9}
+  .tile .tn{display:block;font-size:21px;font-weight:800;line-height:1.25}
+  .tile .tt{display:block;font-size:12.5px;font-weight:700;opacity:.92}
+  .none{font-size:16px;color:var(--sub);font-weight:700;margin-top:10px}
+  .done{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--sub);margin-top:12px}
+  .done svg.i{width:16px;height:16px;color:var(--brand)}
 
-  /* ===== 1週間の帯 ===== */
+  /* ===== そのあと・区分ごと ===== */
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
-  h2{font-size:12.5px;color:var(--sub);margin:0 0 10px;font-weight:700;letter-spacing:.06em}
-  .week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-  .wd{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0 10px;border-radius:var(--r-sm);min-height:96px}
-  .wd.is-today{background:var(--soft);box-shadow:inset 0 0 0 1.5px var(--brand)}
-  .wd .w{font-size:11.5px;font-weight:700;color:var(--sub);white-space:nowrap}
-  .wd.sun .w{color:var(--sun)} .wd.sat .w{color:var(--sat)}
-  .wd .d{font-size:17px;font-weight:800;line-height:1.1}
-  .wd .m{width:28px;height:28px;border-radius:8px;background:var(--c);display:grid;place-items:center;font-size:15px;line-height:1}
-
-  /* ===== 収集スケジュール ===== */
+  h2{font-size:12.5px;color:var(--sub);margin:0 0 6px;font-weight:700;letter-spacing:.06em}
+  .up{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .up:last-child{border-bottom:none}
+  .up .ud{width:92px;flex:none;line-height:1.3}
+  .up .ud b{display:block;font-size:15px;font-weight:800}
+  .up .ud span{font-size:12px;color:var(--sub)}
+  .up .ud.sun b{color:var(--sun)} .up .ud.sat b{color:var(--sat)}
+  .up .uc{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
   .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
   .row:last-of-type{border-bottom:none}
-  .ctile{width:36px;height:36px;border-radius:10px;background:var(--c);display:grid;place-items:center;font-size:18px;line-height:1;flex:none}
+  .ctile{width:36px;height:36px;border-radius:10px;background:var(--c);color:var(--on,#fff);display:grid;place-items:center;flex:none}
+  .ctile svg.i{width:20px;height:20px}
   .cat{flex:1;min-width:0}
   .cat .cn{font-weight:700;font-size:15px;line-height:1.35}
   .cat .when{font-size:12.5px;color:var(--sub)}
@@ -105,12 +106,15 @@
   .calbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:13px 16px;border:none;
     border-radius:var(--r-md);background:var(--brand);color:var(--on-brand);font-size:15px;font-weight:700;transition:transform .1s}
   .calbtn:active{transform:scale(.98)}
+  .calbtn.ghost{background:var(--card);color:var(--brand);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--brand) 45%,var(--card))}
+  .calbtn svg.i{width:19px;height:19px}
   .calbtn.done{background:var(--soft);color:var(--sub);box-shadow:inset 0 0 0 1px var(--line)}
   .rghost{border:1px solid var(--line);background:var(--card);color:var(--text);font-size:14px;font-weight:700;padding:11px 14px;border-radius:var(--r-md)}
   .rghost:disabled{opacity:.55}
 
   /* ===== チップ（色は --c で指定。どの色でも読める淡色表示） ===== */
-  .chip{flex:none;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:999px;white-space:nowrap;
+  .chip svg.i{width:15px;height:15px}
+  .chip{flex:none;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:999px;white-space:nowrap;
     background:color-mix(in srgb,var(--c,var(--brand)) 16%,var(--card));color:var(--text);
     border:1px solid color-mix(in srgb,var(--c,var(--brand)) 40%,var(--card))}
 
@@ -121,7 +125,7 @@
   /* ===== 分別ガイド・辞典・写真 ===== */
   .keyrule{display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,var(--brand) 10%,var(--card));
     border:1px solid color-mix(in srgb,var(--brand) 30%,var(--card));border-radius:var(--r-md);padding:12px 14px;margin-bottom:12px;font-size:14px;line-height:1.7}
-  .keyrule .i2{font-size:19px;line-height:1.35;flex:none}
+  .keyrule svg.i{width:20px;height:20px;color:var(--brand);margin-top:2px}
   .gcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:15px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
   .gcard .top{display:flex;align-items:center;gap:11px;margin-bottom:9px}
   .gcard .nm{font-weight:800;font-size:16.5px;line-height:1.35}
@@ -133,7 +137,6 @@
   .grules li{font-size:13.5px;padding:3px 0 3px 22px;position:relative;line-height:1.6}
   .grules li::before{content:"";position:absolute;left:3px;top:.62em;width:9px;height:5px;border-left:2px solid var(--brand);border-bottom:2px solid var(--brand);transform:rotate(-45deg)}
   .placenote{font-size:12px;color:var(--sub);margin-top:9px}
-  #dictSearch{display:block;width:100%;padding:12px 14px;font-size:16px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--soft)}
   .drow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
   .drow:last-child{border:none}
   .dname{font-weight:700;font-size:14.5px}
@@ -196,53 +199,52 @@
 </head>
 <body>
   <header class="topbar"><div class="inner">
-    <span class="logo" id="logo" aria-hidden="true">🗑️</span>
+    <span class="logo" id="logo" aria-hidden="true"></span>
     <div class="brand-t">
       <h1 id="appName">ごみ収集日ガイド</h1>
       <div class="city" id="cityName"></div>
     </div>
-    <label class="lang"><span hidden>Language</span><select id="langSel" aria-label="Language"></select></label>
+    <label class="lang"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><select id="langSel" aria-label="Language"></select></label>
   </div></header>
 
   <main class="wrap">
     <div id="viewSchedule">
       <button class="district" id="dbtn" aria-expanded="false" aria-controls="dpanel">
         <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>
-        <span class="dt"><span class="dn" id="dName"></span><span class="da" id="dArea"></span></span>
-        <span class="chg" id="dChg"></span>
+        <span class="dn" id="dName"></span><span class="da" id="dArea"></span><span class="chg" id="dChg"></span>
       </button>
       <div class="dpanel" id="dpanel" hidden>
         <p class="hint" id="dHint" hidden></p>
-        <input id="search" type="search" autocomplete="off">
+        <div class="sbox"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="search" type="search" autocomplete="off"></div>
         <select id="district"></select>
         <div id="count"></div>
       </div>
 
       <section class="hero" id="todayCard" aria-live="polite"></section>
-      <section class="card"><h2 id="hWeek"></h2><div class="week" id="week"></div></section>
-      <section class="card"><h2 id="hSchedule"></h2><div id="schedule"></div>
-        <button id="calBtn" class="calbtn"></button></section>
+      <section class="card"><h2 id="hWeek"></h2><div id="upcoming"></div>
+        <button id="calBtn" class="calbtn ghost"></button></section>
+      <section class="card"><h2 id="hSchedule"></h2><div id="schedule"></div></section>
       <section class="card"><h2 id="hRules"></h2><div class="rule" id="rules"></div></section>
       <footer id="footer"></footer>
     </div>
 
     <div id="viewGuide" hidden>
+      <section class="card">
+        <h2 id="hDict"></h2>
+        <div class="sbox"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="dictSearch" type="search" autocomplete="off"></div>
+        <div id="dictResults"></div>
+        <a id="dictLink" href="#" target="_blank" rel="noopener" style="font-size:12.5px;display:inline-block;margin-top:6px"></a>
+      </section>
       <section class="card" id="photoCard">
         <h2 id="hPhoto"></h2>
         <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
-        <button class="calbtn" id="photoBtn" style="margin-top:0"></button>
+        <button class="calbtn ghost" id="photoBtn" style="margin-top:0"></button>
         <div id="photoStatus" class="placenote"></div>
         <div id="photoResult"></div>
         <div class="placenote" id="photoDisclaim"></div>
       </section>
       <div class="keyrule" id="keyRule"></div>
       <div id="guideCards"></div>
-      <section class="card">
-        <h2 id="hDict"></h2>
-        <input id="dictSearch" type="search" autocomplete="off">
-        <div id="dictResults"></div>
-        <a id="dictLink" href="#" target="_blank" rel="noopener" style="font-size:12.5px;display:inline-block;margin-top:10px"></a>
-      </section>
     </div>
 
     <div id="viewReuse" hidden><div id="reuseRoot"></div></div>
@@ -259,6 +261,7 @@
 <script src="dict.js"></script>
 <script src="guide.js"></script>
 <script src="photo.js"></script>
+<script src="icons.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 let LANG = localStorage.getItem("lang") || CONFIG.defaultLang;
@@ -299,8 +302,11 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 document.documentElement.style.setProperty("--brand", CONFIG.brandColor);
 document.documentElement.style.setProperty("--brand-d", CONFIG.brandColorDark);
 document.documentElement.style.setProperty("--on-brand", textOn(CONFIG.brandColor));
-document.querySelector('meta[name="theme-color"]').content = CONFIG.brandColor;
-$("#logo").textContent = CONFIG.logo;
+// ロゴ：画像URLなら画像、それ以外は線画アイコン（絵文字は機種で絵が変わるため使わない）
+if (/^(https?:|\.{0,2}\/)|\.(png|svg|jpe?g|webp)$/i.test(CONFIG.logo||"")) $("#logo").innerHTML = `<img src="${CONFIG.logo}" alt="">`;
+else $("#logo").innerHTML = ic("leaf");
+// 文言の先頭の絵文字を外す（アイコンは画面側で付ける）
+const noEmo = s => String(s||"").replace(/^(?:\p{Extended_Pictographic}\uFE0F?\s*)+/u, "");
 $("#cityName").textContent = CONFIG.cityName;
 
 // 言語切替（右上）
@@ -351,21 +357,21 @@ function applyLang(){
   document.documentElement.lang = LANG==="pt"?"pt":(LANG==="en"?"en":"ja");
   langSel.value = LANG;
   $("#appName").textContent = T().appName;
-  $("#search").placeholder = T().search;
+  $("#search").placeholder = noEmo(T().search);
   $("#dChg").textContent = T().change;
   $("#dHint").textContent = T().pickFirst;
-  $("#hWeek").textContent = T().week;
+  $("#hWeek").textContent = T().after;
   $("#hSchedule").textContent = T().schedule;
   $("#hRules").textContent = T().rules;
   $("#tabS .tl").textContent = T().tabS;
   $("#tabG .tl").textContent = T().tabG;
   $("#tabR .tl").textContent = T().tabR;
   if (typeof renderReuse === "function") renderReuse();
-  $("#hPhoto").textContent = T().phTitle;
-  $("#photoBtn").textContent = T().phBtn;
+  $("#hPhoto").textContent = noEmo(T().phTitle);
+  $("#photoBtn").innerHTML = ic("camera") + " " + T().phBtn;
   $("#photoDisclaim").textContent = T().phDisclaim;
   $("#hDict").textContent = T().dictQ;
-  $("#dictSearch").placeholder = T().dictPh;
+  $("#dictSearch").placeholder = noEmo(T().dictPh);
   const dl=$("#dictLink"); dl.textContent = T().dictOfficial + " ↗"; dl.href = CONFIG.dictUrl;
   renderDict($("#dictSearch").value);
   renderGuide();
@@ -374,10 +380,13 @@ function applyLang(){
   if(saved && DISTRICTS.some(d=>d.id===saved)) sel.value=saved;
 }
 
-function tileHTML(k, small){
+function tileHTML(k){
   const c=CATEGORIES[k];
-  return `<div class="tile${small?" sm":""}" style="--c:${c.color};--on:${textOn(c.color)}"><span class="ic" aria-hidden="true">${c.icon}</span><span>${T().cats[k]}</span></div>`;
+  return `<div class="tile" style="--c:${c.color};--on:${textOn(c.color)}">${ic(c.icon)}<span><span class="tn">${T().cats[k]}</span><span class="tt">${T().timeShort}</span></span></div>`;
 }
+const chipHTML = k => `<span class="chip" style="--c:${CATEGORIES[k].color}">${ic(CATEGORIES[k].icon)}${T().cats[k]}</span>`;
+// 収集は朝8:30まで。9時を過ぎたら今日の分は終わった扱いにして「次」を出す
+const DONE_HOUR = 9;
 
 function render(){
   const d = DISTRICTS.find(x=>x.id===sel.value) || DISTRICTS[0];
@@ -385,33 +394,33 @@ function render(){
   localStorage.setItem("district", d.id);
   $("#dName").textContent = d.name;
   $("#dArea").textContent = d.area;
-  const today=new Date(); today.setHours(0,0,0,0);
-  const tomo=new Date(today); tomo.setDate(tomo.getDate()+1);
+  const now=new Date(), today=new Date(now); today.setHours(0,0,0,0);
   const cats=Object.keys(CATEGORIES);
   const cn = k => T().cats[k];
 
-  // 今日・明日：収集がある最初の日を大きく
-  const todays=cats.filter(k=>collectsOn(d.schedule[k],today));
-  const tomos =cats.filter(k=>collectsOn(d.schedule[k],tomo));
-  const dayBlock=(label, dt, list, big, noneText)=>`<div class="day">
-      <div class="dlabel"><b>${label}</b><span class="num">${md(dt)}</span></div>
-      ${list.length ? `<div class="tiles">${list.map(k=>tileHTML(k,!big)).join("")}</div>` : `<div class="none">${noneText}</div>`}
-    </div>`;
-  $("#todayCard").innerHTML =
-    dayBlock(T().today, today, todays, true, T().noneShort) +
-    dayBlock(T().tomorrow, tomo, tomos, !todays.length, T().noneShort);
-
-  // 1週間の帯
-  let w="";
-  for(let i=0;i<7;i++){
+  // この先62日の収集日
+  const ups=[];
+  for(let i=0;i<62;i++){
     const dt=new Date(today); dt.setDate(dt.getDate()+i);
-    const ks=cats.filter(k=>collectsOn(d.schedule[k],dt)), dow=dt.getDay();
-    w+=`<div class="wd${i===0?" is-today":""}${dow===0?" sun":dow===6?" sat":""}" title="${ks.map(cn).join("・")}">
-      <span class="w">${WD()[dow]}</span><span class="d num">${dt.getDate()}</span>
-      ${ks.map(k=>`<span class="m" style="--c:${CATEGORIES[k].color}" role="img" aria-label="${cn(k)}">${CATEGORIES[k].icon}</span>`).join("")}
-    </div>`;
+    const ks=cats.filter(k=>collectsOn(d.schedule[k],dt));
+    if(ks.length) ups.push({dt,i,ks});
   }
-  $("#week").innerHTML=w;
+  const done = (ups[0] && ups[0].i===0 && now.getHours()>=DONE_HOUR) ? ups.shift() : null;
+  const rel = i => i===0?T().today : i===1?T().tomorrow : i===2?T().dayAfter : "";
+
+  const h=ups[0];
+  $("#todayCard").innerHTML = `<div class="hlabel">${T().nextDay}</div>` + (h ? `
+      <div class="hdate${(rel(h.i)||"").length>8?" long":""}">${rel(h.i) ? `${rel(h.i)}<span class="hmd num">${md(h.dt)}</span>` : `<span class="num">${md(h.dt)}</span>`}</div>
+      ${h.i>2 ? `<div class="hsub">${T().inDays.replace("{n}",h.i)}</div>` : ""}
+      <div class="tiles">${h.ks.map(tileHTML).join("")}</div>` : `<div class="none">${T().noneShort}</div>`) +
+    (done ? `<div class="done">${ic("check")}${T().todayDone.replace("{c}", done.ks.map(cn).join("・"))}</div>` : "");
+
+  // そのあと（次の5回）
+  $("#upcoming").innerHTML = ups.slice(1,6).map(u=>{
+    const dow=u.dt.getDay();
+    return `<div class="up"><div class="ud${dow===0?" sun":dow===6?" sat":""}"><b class="num">${md(u.dt)}</b><span>${rel(u.i)||T().inDays.replace("{n}",u.i)}</span></div>
+      <div class="uc">${u.ks.map(chipHTML).join("")}</div></div>`;
+  }).join("");
 
   // 区分ごとの一覧
   $("#schedule").innerHTML = cats.map(k=>{
@@ -419,7 +428,7 @@ function render(){
     const nx=nextDate(s,today);
     const nxt = nx ? (nx.days===0?T().today:nx.days===1?T().tomorrow:`${T().next} ${md(nx.date)}`) : "";
     return `<div class="row">
-      <span class="ctile" style="--c:${c.color}" aria-hidden="true">${c.icon}</span>
+      <span class="ctile" style="--c:${c.color};--on:${textOn(c.color)}">${ic(c.icon)}</span>
       <div class="cat"><div class="cn">${cn(k)}</div><div class="when">${fmtWhen(s)}</div></div>
       <div class="next num${nx&&nx.days<=1?" soon":""}">${nxt}</div></div>`;
   }).join("");
@@ -434,9 +443,9 @@ function render(){
 
   // カレンダー通知ボタン
   const btn = $("#calBtn");
-  btn.className = "calbtn";
-  btn.textContent = T().cal;
-  btn.onclick = () => { downloadICS(d); track("ics", d.area); btn.className = "calbtn done"; btn.textContent = "✓ " + T().calDone; };
+  btn.className = "calbtn ghost";
+  btn.innerHTML = ic("bell") + " " + noEmo(T().cal);
+  btn.onclick = () => { downloadICS(d); track("ics", d.area); btn.className = "calbtn done"; btn.innerHTML = ic("check") + " " + T().calDone; };
 }
 
 // ===== カレンダー(.ics)生成：繰り返し予定＋前日20時アラーム =====
@@ -509,7 +518,7 @@ function renderDict(q){
       : (DICT_EXTRA[it.cat] ? (DICT_EXTRA[it.cat].note[lk]||DICT_EXTRA[it.cat].note.ja) : "");
     return `<div class="drow">
       <div><div class="dname">${name}</div>${note?`<div class="dnote">${note}</div>`:""}</div>
-      <span class="chip" style="--c:${c.color}">${c.icon} ${c.label}</span>
+      <span class="chip" style="--c:${c.color}">${ic(c.icon)}${c.label}</span>
     </div>`;
   }).join("");
   return hits[0];
@@ -528,7 +537,7 @@ $("#dictSearch").addEventListener("input", e=>{
 // ===== 分別ガイド（出す場所の軸で見える化）=====
 function renderGuide(){
   const lk=["en","pt","easy"].includes(LANG)?LANG:"ja";
-  $("#keyRule").innerHTML=`<span class="i2" aria-hidden="true">💡</span><div>${KEY_RULE[lk]||KEY_RULE.ja}</div>`;
+  $("#keyRule").innerHTML=`${ic("bulb")}<div>${KEY_RULE[lk]||KEY_RULE.ja}</div>`;
   $("#guideCards").innerHTML=GUIDE.map(g=>{
     const isCat=!!CATEGORIES[g.cat];
     const name=isCat?T().cats[g.cat]:(g.name[lk]||g.name.ja);
@@ -539,8 +548,8 @@ function renderGuide(){
     const itemsArr=(g.items&&(g.items[lk]||g.items.ja))||[];
     const rulesArr=(g.rules&&(g.rules[lk]||g.rules.ja))||[];
     return `<div class="gcard">
-      <div class="top"><span class="ctile" style="--c:${color}" aria-hidden="true">${icon}</span><span class="nm">${name}</span></div>
-      <span class="chip" style="--c:${pl.color}">${pl.icon} ${pl.label[lk]||pl.label.ja}</span>
+      <div class="top"><span class="ctile" style="--c:${color};--on:${textOn(color)}" aria-hidden="true">${ic(icon)}</span><span class="nm">${name}</span></div>
+      <span class="chip" style="--c:${pl.color}">${ic(pl.icon)}${pl.label[lk]||pl.label.ja}</span>
       <div class="desc">${desc}</div>
       <div class="lbl">${T().gItems}</div><div class="chips">${itemsArr.map(x=>`<span>${x}</span>`).join("")}</div>
       <div class="lbl">${T().gRules}</div><ul class="grules">${rulesArr.map(r=>`<li>${r}</li>`).join("")}</ul>
@@ -614,7 +623,7 @@ $("#photoInput").addEventListener("change", async e=>{
        <div class="drow" style="margin-top:12px">
         <div><div class="dname">${hit.name}</div>${hit.note?`<div class="dnote">${hit.note}</div>`:""}
           <div class="dnote">${T().phConf} ${Math.round(used.probability*100)}%</div></div>
-        <span class="chip" style="--c:${hit.info.color}">${hit.info.icon} ${hit.info.label}</span></div>
+        <span class="chip" style="--c:${hit.info.color}">${ic(hit.info.icon)}${hit.info.label}</span></div>
        <div class="placenote">AI: ${alt}</div>`);
     } else {
       $("#photoResult").insertAdjacentHTML("beforeend",

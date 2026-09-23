@@ -19,7 +19,7 @@ const CONFIG = {
 
 // ===== 多言語辞書 =====
 const I18N = {
-  ja:   { privacy:"使い方の改善のため、匿名の利用件数（検索された品目など）を集計しています。個人や端末を特定する情報は送りません。", label:"日本語", appName:"ごみ収集日ガイド", search:"🔍 自治区・町名で検索", all:"全%d自治区", hit:"該当 %d 件",
+  ja:   { nextDay:"次のごみの日", after:"そのあと", dayAfter:"あさって", inDays:"あと{n}日", timeShort:"朝8:30まで", todayDone:"今日の{c}は朝8:30まででした", privacy:"使い方の改善のため、匿名の利用件数（検索された品目など）を集計しています。個人や端末を特定する情報は送りません。", label:"日本語", appName:"ごみ収集日ガイド", search:"🔍 自治区・町名で検索", all:"全%d自治区", hit:"該当 %d 件",
           today:"今日", tomorrow:"明日", none:"今日の収集はありません", schedule:"収集スケジュール",
           next:"次は", sort:"分別早見表", rules:"出し方ルール", ruleTime:"時間", rulePlace:"場所",
           cal:"📅 カレンダーに追加（前日20時に通知）", calDone:"カレンダーに追加しました",
@@ -30,7 +30,7 @@ const I18N = {
           cats:{moyasu:"燃やすごみ",plastic:"プラスチック製容器包装",shigen:"資源の日",kinzoku:"金属ごみ",umeru:"埋めるごみ"},
           weekly:"毎週 {d}曜", monthly:"第{w} {d}曜",
           timeTxt:"収集日の午前8時30分までに出す", placeTxt:"指定の集積場所・指定の袋で。指定日以外は出さない。" },
-  en:   { privacy:"To improve this service we count anonymous usage (e.g. items searched). Nothing that identifies you or your device is sent.", label:"English", appName:"Garbage Collection Guide", search:"🔍 Search your district", all:"%d districts", hit:"%d found",
+  en:   { nextDay:"Next collection", after:"Coming up", dayAfter:"In 2 days", inDays:"in {n} days", timeShort:"By 8:30 AM", todayDone:"Today's {c} was due by 8:30 AM", privacy:"To improve this service we count anonymous usage (e.g. items searched). Nothing that identifies you or your device is sent.", label:"English", appName:"Garbage Collection Guide", search:"🔍 Search your district", all:"%d districts", hit:"%d found",
           today:"Today", tomorrow:"Tomorrow", none:"No collection today", schedule:"Collection schedule",
           next:"Next", sort:"Sorting guide", rules:"How to put out", ruleTime:"Time", rulePlace:"Place",
           cal:"📅 Add to calendar (reminder 8 PM day before)", calDone:"Added to your calendar",
@@ -41,7 +41,7 @@ const I18N = {
           cats:{moyasu:"Burnable",plastic:"Plastic packaging",shigen:"Recyclables",kinzoku:"Metal",umeru:"Non-burnable"},
           weekly:"Every {d}", monthly:"{d} of week {w}",
           timeTxt:"Put out by 8:30 AM on collection day", placeTxt:"Use the designated spot and bag. Only on the designated day." },
-  pt:   { privacy:"Para melhorar o serviço, contamos o uso de forma anônima (ex.: itens pesquisados). Nada que identifique você ou seu aparelho é enviado.", label:"Português", appName:"Guia de Coleta de Lixo", search:"🔍 Busque seu bairro", all:"%d bairros", hit:"%d encontrados",
+  pt:   { nextDay:"Próxima coleta", after:"Depois", dayAfter:"Depois de amanhã", inDays:"em {n} dias", timeShort:"Até 8h30", todayDone:"Hoje ({c}) foi até 8h30", privacy:"Para melhorar o serviço, contamos o uso de forma anônima (ex.: itens pesquisados). Nada que identifique você ou seu aparelho é enviado.", label:"Português", appName:"Guia de Coleta de Lixo", search:"🔍 Busque seu bairro", all:"%d bairros", hit:"%d encontrados",
           today:"Hoje", tomorrow:"Amanhã", none:"Sem coleta hoje", schedule:"Programação de coleta",
           next:"Próximo", sort:"Guia de separação", rules:"Como descartar", ruleTime:"Horário", rulePlace:"Local",
           cal:"📅 Adicionar ao calendário (aviso 20h véspera)", calDone:"Adicionado ao calendário",
@@ -52,7 +52,7 @@ const I18N = {
           cats:{moyasu:"Queimável",plastic:"Embalagem plástica",shigen:"Recicláveis",kinzoku:"Metal",umeru:"Não queimável"},
           weekly:"Toda {d}", monthly:"{d} da {w}ª semana",
           timeTxt:"Coloque até 8h30 no dia da coleta", placeTxt:"Use o local e a sacola indicados. Só no dia indicado." },
-  easy: { privacy:"アプリを よくするため、つかわれた かず だけを かぞえています。あなたの ことが わかる じょうほうは おくりません。", label:"やさしい日本語", appName:"ごみの ひ ガイド", search:"🔍 じぶんの ちく を さがす", all:"ぜんぶで %d ちく", hit:"%d こ",
+  easy: { nextDay:"つぎの ごみの ひ", after:"そのあと", dayAfter:"あさって", inDays:"あと {n}にち", timeShort:"あさ 8じ30ぷん まで", todayDone:"きょうの {c}は あさ 8じ30ぷん まで でした", privacy:"アプリを よくするため、つかわれた かず だけを かぞえています。あなたの ことが わかる じょうほうは おくりません。", label:"やさしい日本語", appName:"ごみの ひ ガイド", search:"🔍 じぶんの ちく を さがす", all:"ぜんぶで %d ちく", hit:"%d こ",
           today:"きょう", tomorrow:"あした", none:"きょうは ごみ を ださないで ください", schedule:"ごみの ひ",
           next:"つぎは", sort:"わけかた", rules:"だしかた", ruleTime:"じかん", rulePlace:"ばしょ",
           cal:"📅 カレンダーに いれる（まえの ひ 20じ に おしらせ）", calDone:"カレンダーに いれました",
