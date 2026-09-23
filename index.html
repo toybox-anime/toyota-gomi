@@ -50,7 +50,23 @@
   .lang select{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:var(--card);color:var(--text);
     font-size:13px;font-weight:700;padding:7px 13px 7px 31px;border-radius:999px;max-width:140px}
 
+  .bigbtn{flex:none;height:34px;min-width:40px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);
+    color:var(--text);font-weight:800;font-size:13px;line-height:1;display:grid;place-items:center;letter-spacing:.02em}
+  .bigbtn .a1{font-size:10.5px;margin-right:1px}
+  .bigbtn .a2{font-size:17px}
+  .bigbtn[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
   .wrap{max-width:600px;margin:0 auto;padding:6px 16px 8px}
+
+  /* ===== 文字を大きく（C案）：画面全体を拡大し、薄い文字を濃く、答えを文で添える ===== */
+  html.big .wrap{zoom:1.2}
+  html.big{--sub:#39443f}
+  @media (prefers-color-scheme: dark){ html.big{--sub:#c9d2cd} }
+  html.big .tabs button{font-size:13.5px}
+  html.big .tabs button .ib svg.i{width:26px;height:26px}
+  .say{display:none}
+  html.big .say{display:block;font-size:17px;font-weight:700;line-height:1.65;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 
   /* ===== 地区（小さく1行。押すと検索） ===== */
   .district{display:flex;align-items:baseline;gap:6px;width:100%;background:none;border:none;padding:8px 2px;margin:0 0 4px;text-align:left}
@@ -92,6 +108,7 @@
   .up .ud span{font-size:12px;color:var(--sub)}
   .up .ud.sun b{color:var(--sun)} .up .ud.sat b{color:var(--sat)}
   .up .uc{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+  .up .uc .chip,.mdet .chip{white-space:normal;flex:0 1 auto;min-width:0}
   /* リスト／月の切替 */
   .chead{display:flex;align-items:center;gap:8px;margin-bottom:6px;min-height:30px}
   .chead h2{margin:0}
@@ -237,6 +254,7 @@
       <h1 id="appName">ごみ収集日ガイド</h1>
       <div class="city" id="cityName"></div>
     </div>
+    <button class="bigbtn" id="bigBtn" aria-pressed="false"><span aria-hidden="true"><span class="a1">A</span><span class="a2">A</span></span><span class="sr" id="bigLbl"></span></button>
     <label class="lang"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><select id="langSel" aria-label="Language"></select></label>
   </div></header>
 
@@ -400,6 +418,7 @@ function applyLang(){
   $("#hWeek").textContent = T().after;
   $("#vList").textContent = T().vList;
   $("#vMonth").textContent = T().vMonth;
+  $("#bigLbl").textContent = T().bigText; $("#bigBtn").title = T().bigText;
   $("#hSchedule").textContent = T().schedule;
   $("#hRules").textContent = T().rules;
   $("#tabS .tl").textContent = T().tabS;
@@ -452,7 +471,9 @@ function render(){
       <div class="hdate${(rel(h.i)||"").length>8?" long":""}">${rel(h.i) ? `${rel(h.i)}<span class="hmd num">${md(h.dt)}</span>` : `<span class="num">${md(h.dt)}</span>`}</div>
       ${h.i>2 ? `<div class="hsub">${T().inDays.replace("{n}",h.i)}</div>` : ""}
       <div class="tiles">${h.ks.map(tileHTML).join("")}</div>` : `<div class="none">${T().noneShort}</div>`) +
-    (done ? `<div class="done">${ic("check")}${T().todayDone.replace("{c}", done.ks.map(cn).join("・"))}</div>` : "");
+    (done ? `<div class="done">${ic("check")}${T().todayDone.replace("{c}", done.ks.map(cn).join("・"))}</div>` : "") +
+    // 文字を大きくしたときだけ：色や記号に頼らず、答えを文で言う
+    `<div class="say">${(!done && (!h || h.i>0)) ? T().none + "<br>" : ""}${h ? T().sayNext.replace("{d}", rel(h.i) ? `${rel(h.i)} ${md(h.dt)}` : md(h.dt)).replace("{c}", h.ks.map(cn).join("・")) : ""}</div>`;
 
   // そのあと（次の5回）
   $("#upcoming").innerHTML = ups.slice(1,6).map(u=>{
@@ -488,6 +509,15 @@ function render(){
   btn.innerHTML = ic("bell") + " " + noEmo(T().cal);
   btn.onclick = () => { downloadICS(d); track("ics", d.area); btn.className = "calbtn done"; btn.innerHTML = ic("check") + " " + T().calDone; };
 }
+
+// ===== 文字を大きく（端末に記憶）=====
+function setBig(on){
+  document.documentElement.classList.toggle("big", on);
+  $("#bigBtn").setAttribute("aria-pressed", String(on));
+  try{ localStorage.setItem("big", on ? "1" : "0"); }catch(e){}
+}
+setBig(localStorage.getItem("big") === "1");
+$("#bigBtn").onclick = () => setBig(!document.documentElement.classList.contains("big"));
 
 // ===== 月のカレンダー（リスト⇄月 の切替）=====
 let curD = null, monthOffset = 0, monthSel = null;
