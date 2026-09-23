@@ -92,6 +92,39 @@
   .up .ud span{font-size:12px;color:var(--sub)}
   .up .ud.sun b{color:var(--sun)} .up .ud.sat b{color:var(--sat)}
   .up .uc{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+  /* リスト／月の切替 */
+  .chead{display:flex;align-items:center;gap:8px;margin-bottom:6px;min-height:30px}
+  .chead h2{margin:0}
+  .seg{display:inline-flex;background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:2px;margin-left:auto;flex:none}
+  .seg button{border:none;background:none;font-size:12.5px;font-weight:700;color:var(--sub);padding:5px 12px;border-radius:999px;white-space:nowrap}
+  .seg button[aria-selected="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.14)}
+
+  /* ===== 月のカレンダー（紙のごみカレンダーと同じ見え方） ===== */
+  .mnav{display:flex;align-items:center;justify-content:space-between;margin:4px 0 10px}
+  .mnav b{font-size:17px;font-weight:800}
+  .mbtn{width:38px;height:38px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--text);display:grid;place-items:center;padding:0}
+  .mbtn svg.i{width:18px;height:18px}
+  .mbtn.prev svg.i{transform:rotate(180deg)}
+  .mbtn.off{visibility:hidden}
+  .mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+  .mw{margin-bottom:4px}
+  .mw span{font-size:11.5px;font-weight:700;color:var(--sub);text-align:center}
+  .mw .sun{color:var(--sun)} .mw .sat{color:var(--sat)}
+  .mc{display:flex;flex-direction:column;align-items:center;gap:4px;min-height:56px;padding:6px 2px 4px;border:none;border-radius:10px;background:var(--soft);color:var(--text)}
+  .mc.blank{background:none}
+  .mc .mn{font-size:14px;font-weight:700;line-height:1}
+  .mc.sun .mn{color:var(--sun)} .mc.sat .mn{color:var(--sat)}
+  .mc.past{opacity:.42}
+  .mc.today{box-shadow:inset 0 0 0 2px var(--brand)}
+  .mc.sel{box-shadow:inset 0 0 0 2px var(--text)}
+  .mk{display:flex;gap:2px;width:100%;padding:0 2px}
+  .mk i{flex:1;min-width:0;height:24px;border-radius:6px;background:var(--c);color:var(--on,#fff);display:grid;place-items:center}
+  .mk svg.i{width:15px;height:15px;stroke-width:2.2}
+  .mk.n3 svg.i{display:none}
+  .mdet{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;background:var(--soft);border-radius:var(--r-md);font-size:14px;min-height:46px}
+  .mdet b{font-weight:800}
+  .mleg{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+
   .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
   .row:last-of-type{border-bottom:none}
   .ctile{width:36px;height:36px;border-radius:10px;background:var(--c);color:var(--on,#fff);display:grid;place-items:center;flex:none}
@@ -221,7 +254,11 @@
       </div>
 
       <section class="hero" id="todayCard" aria-live="polite"></section>
-      <section class="card"><h2 id="hWeek"></h2><div id="upcoming"></div>
+      <section class="card">
+        <div class="chead"><h2 id="hWeek"></h2>
+          <div class="seg" role="tablist"><button role="tab" data-sv="list" id="vList"></button><button role="tab" data-sv="month" id="vMonth"></button></div></div>
+        <div id="upcoming"></div>
+        <div id="month" hidden></div>
         <button id="calBtn" class="calbtn ghost"></button></section>
       <section class="card"><h2 id="hSchedule"></h2><div id="schedule"></div></section>
       <section class="card"><h2 id="hRules"></h2><div class="rule" id="rules"></div></section>
@@ -361,6 +398,8 @@ function applyLang(){
   $("#dChg").textContent = T().change;
   $("#dHint").textContent = T().pickFirst;
   $("#hWeek").textContent = T().after;
+  $("#vList").textContent = T().vList;
+  $("#vMonth").textContent = T().vMonth;
   $("#hSchedule").textContent = T().schedule;
   $("#hRules").textContent = T().rules;
   $("#tabS .tl").textContent = T().tabS;
@@ -422,6 +461,8 @@ function render(){
       <div class="uc">${u.ks.map(chipHTML).join("")}</div></div>`;
   }).join("");
 
+  curD = d; renderMonth(); setView(schedView);
+
   // 区分ごとの一覧
   $("#schedule").innerHTML = cats.map(k=>{
     const s=d.schedule[k]; if(!s) return ""; const c=CATEGORIES[k];
@@ -447,6 +488,62 @@ function render(){
   btn.innerHTML = ic("bell") + " " + noEmo(T().cal);
   btn.onclick = () => { downloadICS(d); track("ics", d.area); btn.className = "calbtn done"; btn.innerHTML = ic("check") + " " + T().calDone; };
 }
+
+// ===== 月のカレンダー（リスト⇄月 の切替）=====
+let curD = null, monthOffset = 0, monthSel = null;
+let schedView = localStorage.getItem("schedView") === "month" ? "month" : "list";
+const MONTH_AHEAD = 11;
+function setView(v){
+  schedView = v; localStorage.setItem("schedView", v);
+  $("#upcoming").hidden = v !== "list";
+  $("#month").hidden = v !== "month";
+  $("#hWeek").style.visibility = v === "list" ? "" : "hidden";
+  document.querySelectorAll("[data-sv]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.sv === v)));
+}
+function renderMonth(){
+  const d = curD; if(!d) return;
+  const base = new Date(); base.setHours(0,0,0,0);
+  const first = new Date(base.getFullYear(), base.getMonth() + monthOffset, 1);
+  const y = first.getFullYear(), m = first.getMonth(), days = new Date(y, m+1, 0).getDate();
+  const cats = Object.keys(CATEGORIES).filter(k => d.schedule[k]);
+  const cn = k => T().cats[k];
+  const loc = {en:"en-US", pt:"pt-BR"}[LANG] || "ja-JP";
+  const title = first.toLocaleDateString(loc, {year:"numeric", month:"long"});
+  let cells = "";
+  for(let i=0;i<first.getDay();i++) cells += `<span class="mc blank"></span>`;
+  for(let n=1;n<=days;n++){
+    const dt = new Date(y, m, n), dow = dt.getDay();
+    const ks = cats.filter(k => collectsOn(d.schedule[k], dt));
+    const cls = (dt < base ? " past" : "") + (+dt === +base ? " today" : "") + (dow===0?" sun":dow===6?" sat":"") + (monthSel===n ? " sel" : "");
+    cells += `<button class="mc${cls}" data-n="${n}" aria-label="${md(dt)} ${ks.map(cn).join("・") || T().noneShort}">
+      <span class="mn num">${n}</span>
+      <span class="mk${ks.length>=3?" n3":""}">${ks.map(k=>`<i style="--c:${CATEGORIES[k].color};--on:${textOn(CATEGORIES[k].color)}">${ic(CATEGORIES[k].icon)}</i>`).join("")}</span></button>`;
+  }
+  // 下の説明：押した日（なければ今月は今日）
+  const sd = monthSel ? new Date(y, m, monthSel) : (monthOffset === 0 ? base : null);
+  let det = "";
+  if(sd){
+    const ks = cats.filter(k => collectsOn(d.schedule[k], sd));
+    det = `<b class="num">${md(sd)}</b>${ks.length ? ks.map(chipHTML).join("") : `<span style="color:var(--sub)">${T().noneShort}</span>`}`;
+  }
+  $("#month").innerHTML = `
+    <div class="mnav">
+      <button class="mbtn prev${monthOffset<=0?" off":""}" data-mo="-1" aria-label="${T().prevM}">${ic("chev")}</button>
+      <b>${title}</b>
+      <button class="mbtn${monthOffset>=MONTH_AHEAD?" off":""}" data-mo="1" aria-label="${T().nextM}">${ic("chev")}</button>
+    </div>
+    <div class="mgrid mw" aria-hidden="true">${WD().map((w,i)=>`<span class="${i===0?"sun":i===6?"sat":""}">${w}</span>`).join("")}</div>
+    <div class="mgrid">${cells}</div>
+    ${det ? `<div class="mdet" aria-live="polite">${det}</div>` : ""}
+    <div class="mleg">${cats.map(chipHTML).join("")}</div>`;
+}
+$("#month").addEventListener("click", e => {
+  const mo = e.target.closest("[data-mo]");
+  if(mo){ monthOffset = Math.min(MONTH_AHEAD, Math.max(0, monthOffset + Number(mo.dataset.mo))); monthSel = null; renderMonth(); return; }
+  const c = e.target.closest(".mc[data-n]");
+  if(c){ monthSel = Number(c.dataset.n); renderMonth(); }
+});
+document.querySelectorAll("[data-sv]").forEach(b => b.onclick = () => setView(b.dataset.sv));
 
 // ===== カレンダー(.ics)生成：繰り返し予定＋前日20時アラーム =====
 const BYDAY = ["SU","MO","TU","WE","TH","FR","SA"];
