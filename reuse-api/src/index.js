@@ -1,18 +1,18 @@
-// ===== リユース掲示板 API（Cloudflare Worker + D1 + KV）=====
-// 公開: 一覧/詳細/投稿/受け取り希望/メッセージ/通報/画像
-// 管理: 承認待ち一覧/承認/却下（Authorization: Bearer ADMIN_TOKEN）
+// ===== ごみアプリ API（Cloudflare Worker + D1 + KV）=====
+// 市のデータ: city.js（公開の収集日・職員の編集）
+// 職員ログイン: auth.js / 前日通知: push.js
+// このファイル: ゆずります掲示板・匿名の利用集計・管理（承認・効果集計）
+import { HOUR, HttpError, bad, readJson, json, text, corsHeaders, cities, salt, clientIp, jstDay, token, sha } from "./util.js";
+import { principal, authRoutes } from "./auth.js";
+import { cityRoutes } from "./city.js";
+import { pushRoutes, runPush } from "./push.js";
 
 const CATEGORIES = ["furniture", "appliance", "kids", "clothes", "daily", "hobby", "other"];
 const MAX_IMAGE = 2 * 1024 * 1024;
-const HOUR = 3600 * 1000;
 const LIMIT_POSTS_PER_HOUR = 5;
 const LIMIT_MSGS_PER_HOUR = 30;
 const IMAGE_TTL_SEC = 60 * 24 * 3600;
 
-class HttpError extends Error {
-  constructor(status, code, message) { super(message); this.status = status; this.code = code; }
-}
-const bad = (code, msg) => { throw new HttpError(400, code, msg || code); };
 
 export default {
   async fetch(req, env) {
@@ -27,6 +27,9 @@ export default {
     }
     for (const [k, v] of Object.entries(cors)) res.headers.set(k, v);
     return res;
+  },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runPush(env, event.scheduledTime).then(r => console.log("push", JSON.stringify(r))));
   },
 };
 
@@ -45,6 +48,12 @@ async function route(req, env, url) {
   if ((r = p.match(/^\/api\/threads\/([\w-]{8,64})\/messages$/)) && m === "POST") return postMessage(req, env, r[1]);
   if ((r = p.match(/^\/img\/([\w-]{8,64}\.(?:jpg|png|webp))$/)) && m === "GET") return serveImage(env, r[1]);
   if (m === "POST" && p === "/api/ev") return recordEvents(req, env);
+  if (p.startsWith("/api/auth/") || p.startsWith("/api/staff/")) {
+    const res = (await cityRoutes(req, env, url)) || (await authRoutes(req, env, url));
+    if (res) return res;
+  }
+  if (p.startsWith("/api/city/")) { const res = await cityRoutes(req, env, url); if (res) return res; }
+  if (p.startsWith("/api/push/")) { const res = await pushRoutes(req, env, url); if (res) return res; }
   if (p.startsWith("/api/admin/")) return admin(req, env, url);
   throw new HttpError(404, "not_found", "not found");
 }
@@ -208,10 +217,12 @@ const EV_KINDS = {
   photo_item: /^.{1,40}$/u,
   ics: /^.{1,24}$/u,                   // カレンダー登録（キー=地区）
   tab: /^(schedule|guide|reuse)$/,
+  ref: /^(welcome|widget)$/,           // どの入口から来たか（転入者向けQR・埋め込み）
+  push: /^(on|off)$/,                  // 前日通知の登録・解除
+  sodai: /^(reuse|apply|phone|info)$/, // 粗大ごみ案内で押されたボタン
 };
 const EV_MAX_PER_REQ = 10;
 const EV_MAX_PER_DAY = 500;
-const jstDay = (t = Date.now()) => new Date(t + 9 * HOUR).toISOString().slice(0, 10);
 
 async function recordEvents(req, env) {
   // text/plain で受ける（ブラウザの事前確認リクエストを省いて軽くする）
@@ -222,7 +233,7 @@ async function recordEvents(req, env) {
   const evs = (Array.isArray(d.ev) ? d.ev : []).slice(0, EV_MAX_PER_REQ).map(e => {
     if (!Array.isArray(e)) return null;
     const kind = String(e[0]), key = String(e[1] == null ? "" : e[1]).normalize("NFKC")
-      .replace(/[ -]/g, "").trim();
+      .replace(/[\u0000-\u001F\u007F]/g, "").trim();
     return EV_KINDS[kind] && EV_KINDS[kind].test(key) ? [kind, key] : null;
   }).filter(Boolean);
   if (!evs.length) return new Response(null, { status: 204 });
@@ -251,7 +262,7 @@ async function adminStats(env, url) {
   // 投稿は作成時刻(UTCミリ秒)なので、JSTのその日0時にそろえる
   const sinceMs = Date.parse(from + "T00:00:00+09:00");
 
-  const [rows, series, reuse, threads] = await env.DB.batch([
+  const [rows, series, reuse, threads, push] = await env.DB.batch([
     env.DB.prepare(`SELECT kind, key, SUM(n) AS n FROM stats WHERE city = ? AND day >= ?
                      GROUP BY kind, key ORDER BY n DESC`).bind(city, from),
     env.DB.prepare(`SELECT day, kind, SUM(n) AS n FROM stats WHERE city = ? AND day >= ?
@@ -260,6 +271,7 @@ async function adminStats(env, url) {
                      GROUP BY status, category`).bind(city, sinceMs),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM threads t JOIN posts p ON p.id = t.post_id
                      WHERE p.city = ? AND t.created_at >= ?`).bind(city, sinceMs),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM push_subs WHERE city = ?`).bind(city),
   ]);
   const totals = {}, top = {};
   for (const r of rows.results) {
@@ -270,24 +282,29 @@ async function adminStats(env, url) {
     city, days, from, to: jstDay(), totals, top,
     series: series.results,
     reuse: { rows: reuse.results, threads: (threads.results[0] || {}).n || 0 },
+    push_subs: (push.results[0] || {}).n || 0,
   });
 }
 
 // ---------- 管理API ----------
 async function admin(req, env, url) {
-  const adminToken = String(env.ADMIN_TOKEN || "").trim();
-  if (!adminToken) throw new HttpError(500, "config", "admin not configured");
-  const auth = (req.headers.get("Authorization") || "").trim();
-  if (auth !== `Bearer ${adminToken}`) throw new HttpError(401, "auth", "unauthorized");
+  // システム管理者（ADMIN_TOKEN）は全市、職員は自分の市だけ
+  const who = await principal(req, env);
+  if (!who) throw new HttpError(401, "auth", "unauthorized");
   const p = url.pathname;
   let r;
-  if (req.method === "GET" && p === "/api/admin/stats") return adminStats(env, url);
+  if (req.method === "GET" && p === "/api/admin/stats") {
+    if (!who.super && url.searchParams.get("city") !== who.city) throw new HttpError(403, "forbidden", "other city");
+    return adminStats(env, url);
+  }
   if (req.method === "GET" && p === "/api/admin/posts") {
     const status = url.searchParams.get("status") || "pending";
-    const where = status === "reported" ? "report_count > 0" : "status = ?";
-    const stmt = env.DB.prepare(
-      `SELECT * FROM posts WHERE ${where} ORDER BY created_at DESC LIMIT 200`);
-    const { results } = await (status === "reported" ? stmt : stmt.bind(status)).all();
+    const city = who.super ? (url.searchParams.get("city") || "") : who.city;
+    const conds = [status === "reported" ? "report_count > 0" : "status = ?"];
+    const args = status === "reported" ? [] : [status];
+    if (city) { conds.push("city = ?"); args.push(city); }
+    const { results } = await env.DB.prepare(
+      `SELECT * FROM posts WHERE ${conds.join(" AND ")} ORDER BY created_at DESC LIMIT 200`).bind(...args).all();
     const ids = results.map(x => x.id);
     const reps = ids.length ? (await env.DB.prepare(
       `SELECT post_id, reason, created_at FROM reports WHERE post_id IN (${ids.map(() => "?").join(",")})`
@@ -298,8 +315,9 @@ async function admin(req, env, url) {
     })) });
   }
   if ((r = p.match(/^\/api\/admin\/posts\/([\w-]{8,64})\/(approve|reject)$/)) && req.method === "POST") {
-    const post = await env.DB.prepare(`SELECT image_key FROM posts WHERE id = ?`).bind(r[1]).first();
+    const post = await env.DB.prepare(`SELECT image_key, city FROM posts WHERE id = ?`).bind(r[1]).first();
     if (!post) throw new HttpError(404, "not_found", "post not found");
+    if (!who.super && post.city !== who.city) throw new HttpError(403, "forbidden", "other city");
     if (r[2] === "approve") {
       // 公開期間は承認時点から数える
       await env.DB.prepare(`UPDATE posts SET status = 'approved', expires_at = ? WHERE id = ?`)
@@ -367,12 +385,6 @@ function checkPublicText(parts) {
   if (/(?:^|[^\d])[1-9][\d,]*\s*(?:円|yen)|¥\s*[1-9]/i.test(s)) bad("price", "free items only");
 }
 
-function text(v, min, max, field) {
-  const s = String(v == null ? "" : v).replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim();
-  const n = [...s].length;
-  if (n < min || n > max) bad("length", `${field} must be ${min}-${max} chars`);
-  return s;
-}
 
 function sniffImage(b) {
   if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return { ext: "jpg", type: "image/jpeg" };
@@ -382,32 +394,4 @@ function sniffImage(b) {
   return null;
 }
 
-async function readJson(req) {
-  try { return await req.json(); } catch { bad("json", "invalid json"); }
-}
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json; charset=utf-8" } });
-}
-function corsHeaders(env, origin) {
-  const allowed = String(env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
-  const h = { "Vary": "Origin" };
-  if (allowed.includes(origin)) {
-    h["Access-Control-Allow-Origin"] = origin;
-    h["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
-    h["Access-Control-Allow-Headers"] = "Content-Type, X-Token, Authorization";
-    h["Access-Control-Max-Age"] = "86400";
-  }
-  return h;
-}
-const cities = env => String(env.ALLOWED_CITIES || "").split(",").map(s => s.trim());
 const ttl = env => Number(env.POST_TTL_DAYS || 14) * 24 * HOUR;
-const salt = env => String(env.IP_SALT || "gomi-reuse").trim();
-const clientIp = req => req.headers.get("CF-Connecting-IP") || "0.0.0.0";
-function token() {
-  const b = new Uint8Array(24); crypto.getRandomValues(b);
-  return [...b].map(x => x.toString(16).padStart(2, "0")).join("");
-}
-async function sha(s) {
-  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-  return [...new Uint8Array(d)].map(x => x.toString(16).padStart(2, "0")).join("");
-}

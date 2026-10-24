@@ -42,6 +42,8 @@
 
 <script src="config.js"></script>
 <script src="data.js"></script>
+<script>window.CITY_NO_STORE = true;</script>
+<script src="citydata.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 const P=new URLSearchParams(location.search);
@@ -52,12 +54,14 @@ if(P.get("theme")) document.documentElement.style.setProperty("color-scheme",P.g
 
 $("#logo").textContent=CONFIG.logo;
 $("#title").textContent=(P.get("title")||CONFIG.cityShort+" "+T.appName);
-const appUrl=P.get("app")||"index.html";
+const appUrl=P.get("app")||("index.html?city="+encodeURIComponent(CONFIG.cityId));
 $("#open").href=appUrl; $("#open").textContent=(LANG==="ja"?"くわしく ↗":"more ↗");
 
 const WD=T.wd;
 const nthWeek=d=>Math.floor((d.getDate()-1)/7)+1;
-const on=(s,d)=>{if(!s)return false;const w=d.getDay();if(s.weekly)return s.weekly.includes(w);if(s.monthly)return s.monthly.day===w&&s.monthly.week===nthWeek(d);return false;};
+const on=(s,d)=>{if(!s)return false;const w=d.getDay();if(s.weekly)return s.weekly.includes(w);if(s.monthly)return s.monthly.day===w&&(s.monthly.weeks||[s.monthly.week]).includes(nthWeek(d));return false;};
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const catName=k=>{const c=CATEGORIES[k]||{};return esc((c.names&&c.names[LANG])||(T.cats||{})[k]||c.name||k);};
 function nextDate(s,f){const d=new Date(f);d.setHours(0,0,0,0);for(let i=0;i<62;i++){if(on(s,d))return{date:new Date(d),days:i};d.setDate(d.getDate()+1);}return null;}
 
 // 対象自治区の決定：?id / ?name 指定なら固定、無ければセレクタ表示
@@ -82,15 +86,16 @@ function render(d){
   const today=new Date();today.setHours(0,0,0,0);
   const tds=cats.filter(k=>on(d.schedule[k],today));
   $("#today").innerHTML=`<div class="l">${T.today.toUpperCase()} ${today.getMonth()+1}/${today.getDate()}（${WD[today.getDay()]}）</div>`+
-    `<div class="v">${tds.length?tds.map(k=>CATEGORIES[k].icon+T.cats[k]).join("、"):T.none}</div>`;
+    `<div class="v">${tds.length?tds.map(k=>CATEGORIES[k].icon+catName(k)).join("、"):T.none}</div>`;
   // 近い順に上位を表示
   const ups=cats.map(k=>({k,nx:nextDate(d.schedule[k],today)})).filter(x=>x.nx).sort((a,b)=>a.nx.days-b.nx.days);
   $("#list").innerHTML=ups.map(({k,nx})=>{
     const c=CATEGORIES[k];
     const lab=nx.days===0?T.today:nx.days===1?T.tomorrow:`${nx.date.getMonth()+1}/${nx.date.getDate()}（${WD[nx.date.getDay()]}）`;
-    return `<div class="row"><div class="cat"><span class="dot" style="background:${c.color}"></span>${c.icon} ${T.cats[k]}</div><div class="nx">${T.next} ${lab}</div></div>`;
+    return `<div class="row"><div class="cat"><span class="dot" style="background:${c.color}"></span>${c.icon} ${catName(k)}</div><div class="nx">${T.next} ${lab}</div></div>`;
   }).join("");
   $("#ft").textContent=`${d.area} ${d.name}`;
+  $("#title").textContent=(P.get("title")||CONFIG.cityShort+" "+T.appName);
   postHeight();
 }
 
@@ -99,6 +104,9 @@ function postHeight(){ try{ parent.postMessage({gomiWidget:true,height:document.
 window.addEventListener("load",postHeight);
 
 render(pick());
+// 管理画面で直した収集日を取りにいく
+window.onCityUpdate=()=>{ $("#sel").innerHTML=""; render(pick()); };
+refreshCity();
 </script>
 </body>
 </html>

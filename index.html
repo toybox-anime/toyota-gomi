@@ -25,6 +25,7 @@
       --shadow:0 1px 2px rgba(0,0,0,.45); --sun:#fb923c; --sat:#93b4ff; }
   }
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   html,body{margin:0}
   body{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,system-ui,sans-serif;
     background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;-webkit-text-size-adjust:100%;
@@ -244,6 +245,32 @@
   .tabs button.on{color:var(--brand)}
   .tabs button.on .ib{background:color-mix(in srgb,var(--brand) 15%,var(--card))}
   .tabs button .tl{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* 同梱していない市の初回読み込み */
+  html.city-loading main, html.city-loading .tabs, html.city-loading .topbar{visibility:hidden}
+  #cityLoading{position:fixed;inset:0;display:grid;place-content:center;gap:12px;text-align:center;padding:24px;font-weight:700;color:var(--sub);background:var(--bg)}
+
+  /* 前日通知 */
+  .pushon{display:flex;align-items:center;gap:8px;margin-top:12px;padding:11px 14px;border-radius:var(--r-md);font-weight:700;font-size:14px;
+    background:color-mix(in srgb,var(--brand) 12%,var(--card));color:var(--text)}
+  .pushon svg.i{width:19px;height:19px;color:var(--brand)}
+  .linkbtns{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
+  .linkbtn{border:none;background:none;padding:6px 0;color:var(--brand);font-size:13px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+  .twobtn{display:flex;gap:8px;flex-wrap:wrap}
+  .twobtn .calbtn{flex:1 1 180px;width:auto}
+
+  /* 粗大ごみ・転入者 */
+  .steps{list-style:none;padding:0;margin:4px 0 0}
+  .steps li{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:1.7}
+  .steps li:last-child{border-bottom:none}
+  .steps .no{flex:none;width:26px;height:26px;border-radius:999px;display:grid;place-items:center;background:var(--brand);color:var(--on-brand);font-weight:800;font-size:13px;margin-top:1px}
+  .steps .rbtns{margin-top:8px}
+  .steps a.calbtn,.steps a.rghost{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+  .welcome{border:1.5px solid color-mix(in srgb,var(--brand) 45%,var(--card))}
+  .welcome .wh{font-size:19px;font-weight:800;line-height:1.4}
+  .welcome .steps button.wstep{border:none;background:none;padding:0;text-align:left;font:inherit;color:var(--brand);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+  .welcome .steps li.ok .no{background:var(--soft);color:var(--brand);box-shadow:inset 0 0 0 1.5px var(--brand)}
+  .welcome .steps li.ok button.wstep{color:var(--sub);text-decoration:line-through}
+
   @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
 </style>
 </head>
@@ -271,12 +298,14 @@
         <div id="count"></div>
       </div>
 
+      <section class="card welcome" id="welcome" hidden></section>
       <section class="hero" id="todayCard" aria-live="polite"></section>
       <section class="card">
         <div class="chead"><h2 id="hWeek"></h2>
           <div class="seg" role="tablist"><button role="tab" data-sv="list" id="vList"></button><button role="tab" data-sv="month" id="vMonth"></button></div></div>
         <div id="upcoming"></div>
         <div id="month" hidden></div>
+        <div id="pushBox"></div>
         <button id="calBtn" class="calbtn ghost"></button></section>
       <section class="card"><h2 id="hSchedule"></h2><div id="schedule"></div></section>
       <section class="card"><h2 id="hRules"></h2><div class="rule" id="rules"></div></section>
@@ -284,12 +313,14 @@
     </div>
 
     <div id="viewGuide" hidden>
-      <section class="card">
+      <section class="card" id="guideOther" hidden></section>
+      <section class="card" id="dictCard">
         <h2 id="hDict"></h2>
         <div class="sbox"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="dictSearch" type="search" autocomplete="off"></div>
         <div id="dictResults"></div>
         <a id="dictLink" href="#" target="_blank" rel="noopener" style="font-size:12.5px;display:inline-block;margin-top:6px"></a>
       </section>
+      <section class="card" id="sodaiCard"></section>
       <section class="card" id="photoCard">
         <h2 id="hPhoto"></h2>
         <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
@@ -317,6 +348,7 @@
 <script src="guide.js"></script>
 <script src="photo.js"></script>
 <script src="icons.js"></script>
+<script src="citydata.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 let LANG = localStorage.getItem("lang") || CONFIG.defaultLang;
@@ -334,8 +366,7 @@ function textOn(hex){
 // ===== 匿名の利用集計（効果ダッシュボード用）=====
 // 送るのは「種類とキー」だけ。Do Not Track / GPC が有効なら送らない。
 // ローカル検証は ?reuseApi= を付けたときだけ送る（本番の数字を汚さない）。
-const EV_LOCAL = ["localhost","127.0.0.1"].includes(location.hostname);
-const EV_API = ((EV_LOCAL ? new URLSearchParams(location.search).get("reuseApi") : CONFIG.reuseApi) || "").replace(/\/$/, "");
+const EV_API = window.GOMI_API || "";
 const EV_OFF = !EV_API || !CONFIG.cityId || navigator.doNotTrack === "1" || navigator.globalPrivacyControl === true;
 let evQ = [], evTimer = null;
 function track(kind, key){
@@ -353,16 +384,20 @@ function flushEv(){
 addEventListener("pagehide", flushEv);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushEv(); });
 
-// ブランド適用
-document.documentElement.style.setProperty("--brand", CONFIG.brandColor);
-document.documentElement.style.setProperty("--brand-d", CONFIG.brandColorDark);
-document.documentElement.style.setProperty("--on-brand", textOn(CONFIG.brandColor));
-// ロゴ：画像URLなら画像、それ以外は線画アイコン（絵文字は機種で絵が変わるため使わない）
-if (/^(https?:|\.{0,2}\/)|\.(png|svg|jpe?g|webp)$/i.test(CONFIG.logo||"")) $("#logo").innerHTML = `<img src="${CONFIG.logo}" alt="">`;
-else $("#logo").innerHTML = ic("leaf");
+// ブランド適用（市データが更新されたときも呼ぶ）
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function applyBrand(){
+  document.documentElement.style.setProperty("--brand", CONFIG.brandColor);
+  document.documentElement.style.setProperty("--brand-d", CONFIG.brandColorDark);
+  document.documentElement.style.setProperty("--on-brand", textOn(CONFIG.brandColor));
+  // ロゴ：https の画像URLなら画像、それ以外は線画アイコン（絵文字は機種で絵が変わるため使わない）
+  if (/^https:\/\//i.test(CONFIG.logo||"")) $("#logo").innerHTML = `<img src="${esc(CONFIG.logo)}" alt="">`;
+  else $("#logo").innerHTML = ic("leaf");
+  $("#cityName").textContent = CONFIG.cityName;
+}
+applyBrand();
 // 文言の先頭の絵文字を外す（アイコンは画面側で付ける）
 const noEmo = s => String(s||"").replace(/^(?:\p{Extended_Pictographic}\uFE0F?\s*)+/u, "");
-$("#cityName").textContent = CONFIG.cityName;
 
 // 言語切替（右上）
 const langSel = $("#langSel");
@@ -370,17 +405,33 @@ CONFIG.languages.forEach(l=>{ const o=document.createElement("option"); o.value=
 langSel.onchange = () => { LANG=langSel.value; localStorage.setItem("lang",LANG); applyLang(); render(); };
 
 const WD = () => T().wd;
+// 区分名：市データの多言語名 → 共通辞書 → 日本語名
+const catName = k => { const c=CATEGORIES[k]||{}; return (c.names&&c.names[LANG]) || (T().cats||{})[k] || (c.names&&c.names.ja) || c.name || k; };
+// 収集時刻（市ごとの設定。例 "08:30"）を言語に合わせて書く
+function fmtTime(){
+  const m=/^(\d{1,2}):(\d{2})$/.exec(CONFIG.collectTime||"08:30")||[0,"8","30"], h=+m[1], mi=m[2];
+  if(LANG==="en") return `${h%12||12}:${mi} ${h<12?"AM":"PM"}`;
+  if(LANG==="pt") return `${h}h${mi==="00"?"":mi}`;
+  if(LANG==="easy") return `${h}じ${mi==="00"?"":(+mi===30?"30ぷん":`${+mi}ふん`)}`;
+  return `${h}:${mi}`;
+}
+const tt = s => String(s||"").replace("{t}", fmtTime());
+// 収集時刻の30分後を過ぎたら、今日の分は終わった扱い
+function pastCollect(now){ const m=/^(\d{1,2}):(\d{2})$/.exec(CONFIG.collectTime||"08:30")||[0,8,30]; return now.getHours()*60+now.getMinutes() >= (+m[1])*60+(+m[2])+30; }
+const weeksOf = s => s.monthly.weeks || [s.monthly.week];
 const nthWeek = d => Math.floor((d.getDate()-1)/7)+1;
 function collectsOn(s,d){ if(!s)return false; const w=d.getDay();
   if(s.weekly) return s.weekly.includes(w);
-  if(s.monthly) return s.monthly.day===w && s.monthly.week===nthWeek(d);
+  if(s.monthly) return s.monthly.day===w && weeksOf(s).includes(nthWeek(d));
   return false; }
 function nextDate(s,from){ const d=new Date(from); d.setHours(0,0,0,0);
   for(let i=0;i<62;i++){ if(collectsOn(s,d)) return {date:new Date(d),days:i}; d.setDate(d.getDate()+1);} return null; }
 function fmtWhen(s){
-  if(s.weekly) return T().weekly.replace("{d}", s.weekly.map(w=>WD()[w]).join("・"));
-  if(s.monthly) return T().monthly.replace("{w}", s.monthly.week).replace("{d}", WD()[s.monthly.day]);
-  return ""; }
+  // 日付を計算できない予定は、市の公式の文言をそのまま出す
+  const note = s.text ? esc(s.text) : "";
+  if(s.weekly) return T().weekly.replace("{d}", s.weekly.map(w=>WD()[w]).join("・")) + (note?`<br>${note}`:"");
+  if(s.monthly) return T().monthly.replace("{w}", weeksOf(s).join("・")).replace("{d}", WD()[s.monthly.day]) + (note?`<br>${note}`:"");
+  return note; }
 const md = dt => `${dt.getMonth()+1}/${dt.getDate()}（${WD()[dt.getDay()]}）`;
 
 // ===== 地区（ふだんは1行、押すと検索パネル） =====
@@ -433,6 +484,10 @@ function applyLang(){
   const dl=$("#dictLink"); dl.textContent = T().dictOfficial + " ↗"; dl.href = CONFIG.dictUrl;
   renderDict($("#dictSearch").value);
   renderGuide();
+  renderGuideMode();
+  renderSodai();
+  renderWelcome();
+  renderPush();
   buildOptions(search.value);
   const saved=localStorage.getItem("district");
   if(saved && DISTRICTS.some(d=>d.id===saved)) sel.value=saved;
@@ -440,11 +495,9 @@ function applyLang(){
 
 function tileHTML(k){
   const c=CATEGORIES[k];
-  return `<div class="tile" style="--c:${c.color};--on:${textOn(c.color)}">${ic(c.icon)}<span><span class="tn">${T().cats[k]}</span><span class="tt">${T().timeShort}</span></span></div>`;
+  return `<div class="tile" style="--c:${c.color};--on:${textOn(c.color)}">${ic(c.icon)}<span><span class="tn">${esc(catName(k))}</span><span class="tt">${tt(T().timeShort)}</span></span></div>`;
 }
-const chipHTML = k => `<span class="chip" style="--c:${CATEGORIES[k].color}">${ic(CATEGORIES[k].icon)}${T().cats[k]}</span>`;
-// 収集は朝8:30まで。9時を過ぎたら今日の分は終わった扱いにして「次」を出す
-const DONE_HOUR = 9;
+const chipHTML = k => `<span class="chip" style="--c:${CATEGORIES[k].color}">${ic(CATEGORIES[k].icon)}${esc(catName(k))}</span>`;
 
 function render(){
   const d = DISTRICTS.find(x=>x.id===sel.value) || DISTRICTS[0];
@@ -454,7 +507,7 @@ function render(){
   $("#dArea").textContent = d.area;
   const now=new Date(), today=new Date(now); today.setHours(0,0,0,0);
   const cats=Object.keys(CATEGORIES);
-  const cn = k => T().cats[k];
+  const cn = k => esc(catName(k));
 
   // この先62日の収集日
   const ups=[];
@@ -463,7 +516,7 @@ function render(){
     const ks=cats.filter(k=>collectsOn(d.schedule[k],dt));
     if(ks.length) ups.push({dt,i,ks});
   }
-  const done = (ups[0] && ups[0].i===0 && now.getHours()>=DONE_HOUR) ? ups.shift() : null;
+  const done = (ups[0] && ups[0].i===0 && pastCollect(now)) ? ups.shift() : null;
   const rel = i => i===0?T().today : i===1?T().tomorrow : i===2?T().dayAfter : "";
 
   const h=ups[0];
@@ -471,9 +524,9 @@ function render(){
       <div class="hdate${(rel(h.i)||"").length>8?" long":""}">${rel(h.i) ? `${rel(h.i)}<span class="hmd num">${md(h.dt)}</span>` : `<span class="num">${md(h.dt)}</span>`}</div>
       ${h.i>2 ? `<div class="hsub">${T().inDays.replace("{n}",h.i)}</div>` : ""}
       <div class="tiles">${h.ks.map(tileHTML).join("")}</div>` : `<div class="none">${T().noneShort}</div>`) +
-    (done ? `<div class="done">${ic("check")}${T().todayDone.replace("{c}", done.ks.map(cn).join("・"))}</div>` : "") +
+    (done ? `<div class="done">${ic("check")}${tt(T().todayDone).replace("{c}", done.ks.map(cn).join("・"))}</div>` : "") +
     // 文字を大きくしたときだけ：色や記号に頼らず、答えを文で言う
-    `<div class="say">${(!done && (!h || h.i>0)) ? T().none + "<br>" : ""}${h ? T().sayNext.replace("{d}", rel(h.i) ? `${rel(h.i)} ${md(h.dt)}` : md(h.dt)).replace("{c}", h.ks.map(cn).join("・")) : ""}</div>`;
+    `<div class="say">${(!done && (!h || h.i>0)) ? T().none + "<br>" : ""}${h ? tt(T().sayNext).replace("{d}", rel(h.i) ? `${rel(h.i)} ${md(h.dt)}` : md(h.dt)).replace("{c}", h.ks.map(cn).join("・")) : ""}</div>`;
 
   // そのあと（次の5回）
   $("#upcoming").innerHTML = ups.slice(1,6).map(u=>{
@@ -495,8 +548,11 @@ function render(){
       <div class="next num${nx&&nx.days<=1?" soon":""}">${nxt}</div></div>`;
   }).join("");
 
+  saveNotifySettings(d);
+  syncPush(d);
+
   $("#rules").innerHTML =
-    `<b>${T().ruleTime}：</b>${T().timeTxt}<br><b>${T().rulePlace}：</b>${T().placeTxt}`;
+    `<b>${T().ruleTime}：</b>${tt(T().timeTxt)}<br><b>${T().rulePlace}：</b>${T().placeTxt}`;
 
   $("#footer").innerHTML =
     `${CONFIG.cityShort}公式データ（${CONFIG.dataUpdated}・全${DISTRICTS.length}自治区）`+
@@ -506,8 +562,8 @@ function render(){
   // カレンダー通知ボタン
   const btn = $("#calBtn");
   btn.className = "calbtn ghost";
-  btn.innerHTML = ic("bell") + " " + noEmo(T().cal);
-  btn.onclick = () => { downloadICS(d); track("ics", d.area); btn.className = "calbtn done"; btn.innerHTML = ic("check") + " " + T().calDone; };
+  btn.innerHTML = ic("cal") + " " + noEmo(T().cal);
+  btn.onclick = () => { downloadICS(d); track("ics", d.area); markWelcome("w2"); btn.className = "calbtn done"; btn.innerHTML = ic("check") + " " + T().calDone; };
 }
 
 // ===== 文字を大きく（端末に記憶）=====
@@ -536,7 +592,7 @@ function renderMonth(){
   const first = new Date(base.getFullYear(), base.getMonth() + monthOffset, 1);
   const y = first.getFullYear(), m = first.getMonth(), days = new Date(y, m+1, 0).getDate();
   const cats = Object.keys(CATEGORIES).filter(k => d.schedule[k]);
-  const cn = k => T().cats[k];
+  const cn = k => esc(catName(k));
   const loc = {en:"en-US", pt:"pt-BR"}[LANG] || "ja-JP";
   const title = first.toLocaleDateString(loc, {year:"numeric", month:"long"});
   let cells = "";
@@ -586,13 +642,13 @@ function buildICS(d){
   const today = new Date(); today.setHours(0,0,0,0);
   const L = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//gomi-guide//JP","CALSCALE:GREGORIAN","METHOD:PUBLISH"];
   Object.keys(CATEGORIES).forEach(k=>{
-    const s = d.schedule[k]; if(!s) return;
+    const s = d.schedule[k]; if(!s || (!s.weekly && !s.monthly)) return;
     const start = nextOf(s, today); if(!start) return;
     let rrule;
     if(s.weekly) rrule = `FREQ=WEEKLY;BYDAY=${s.weekly.map(w=>BYDAY[w]).join(",")}`;
-    else rrule = `FREQ=MONTHLY;BYDAY=${s.monthly.week}${BYDAY[s.monthly.day]}`;
+    else rrule = `FREQ=MONTHLY;BYDAY=${weeksOf(s).map(w=>w+BYDAY[s.monthly.day]).join(",")}`;
     const dt = `${dstamp(start)}T070000`;          // 収集日 07:00（フローティング＝端末ローカル時刻）
-    const name = CATEGORIES[k].icon + I18N[LANG].cats[k];
+    const name = CATEGORIES[k].icon + catName(k);
     L.push(
       "BEGIN:VEVENT",
       `UID:gomi-${d.id}-${k}@${location.host}`,
@@ -600,7 +656,7 @@ function buildICS(d){
       `DTSTART:${dt}`,
       `DTEND:${dstamp(start)}T073000`,
       `RRULE:${rrule}`,
-      `DESCRIPTION:${I18N[LANG].timeTxt}（${d.area} ${d.name}）`,
+      `DESCRIPTION:${tt(I18N[LANG].timeTxt)}（${d.area} ${d.name}）`,
       "BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${name}`,"TRIGGER:-PT11H",  // 07:00-11h=前日20:00
       "END:VALARM","END:VEVENT"
     );
@@ -619,7 +675,7 @@ function downloadICS(d){
 
 // ===== 分別辞典 検索 =====
 function dictCatInfo(cat){
-  if(CATEGORIES[cat]) return { icon:CATEGORIES[cat].icon, color:CATEGORIES[cat].color, label:T().cats[cat] };
+  if(CATEGORIES[cat]) return { icon:CATEGORIES[cat].icon, color:CATEGORIES[cat].color, label:catName(cat) };
   const e=DICT_EXTRA[cat]; const lk=(LANG==="en"||LANG==="pt")?LANG:"ja";
   return { icon:e.icon, color:e.color, label:e[lk] };
 }
@@ -663,11 +719,12 @@ $("#dictSearch").addEventListener("input", e=>{
 
 // ===== 分別ガイド（出す場所の軸で見える化）=====
 function renderGuide(){
+  if(window.CITY_HAS_GUIDE === false) return;   // 内容を持っていない市は公式ページへ案内（renderGuideMode）
   const lk=["en","pt","easy"].includes(LANG)?LANG:"ja";
   $("#keyRule").innerHTML=`${ic("bulb")}<div>${KEY_RULE[lk]||KEY_RULE.ja}</div>`;
   $("#guideCards").innerHTML=GUIDE.map(g=>{
     const isCat=!!CATEGORIES[g.cat];
-    const name=isCat?T().cats[g.cat]:(g.name[lk]||g.name.ja);
+    const name=isCat?catName(g.cat):(g.name[lk]||g.name.ja);
     const color=isCat?CATEGORIES[g.cat].color:g.color;
     const icon=isCat?CATEGORIES[g.cat].icon:g.icon;
     const pl=PLACES[g.place];
@@ -695,6 +752,7 @@ tabbar.querySelectorAll("button").forEach(b=>b.onclick=(e)=>{
   $("#viewGuide").hidden=(v!=="guide");
   $("#viewReuse").hidden=(v!=="reuse");
   if (v==="reuse" && typeof renderReuse === "function") renderReuse();
+  if (v==="guide" && e && e.isTrusted) markWelcome("w3");
   localStorage.setItem("tab",v);
   window.scrollTo(0,0);
 });
@@ -762,14 +820,154 @@ $("#photoInput").addEventListener("change", async e=>{
   } finally { setTimeout(()=>URL.revokeObjectURL(url),4000); }
 });
 
+// ===== 分別ガイド：内容を持っていない市は、市の公式ページへ案内 =====
+function renderGuideMode(){
+  const has = window.CITY_HAS_GUIDE !== false;
+  ["#dictCard","#photoCard","#keyRule","#guideCards"].forEach(id=>{ $(id).hidden = !has; });
+  $("#guideOther").hidden = has;
+  if(!has){
+    const links = [[CONFIG.officialUrl, T().guideOfficial], [CONFIG.dictUrl, T().dictOfficial]].filter(x=>/^https:\/\//.test(x[0]||""));
+    $("#guideOther").innerHTML = `<h2>${esc(T().tabG)}</h2><p class="rule" style="margin:0 0 10px">${esc(T().guideOther)}</p>
+      <div class="twobtn">${links.map(([u,l])=>`<a class="calbtn ghost" style="text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)} ↗</a>`).join("")}</div>`;
+  }
+}
+
+// ===== 粗大ごみを出したいとき（捨てる前に「ゆずります」へ）=====
+function renderSodai(){
+  const url=/^https:\/\//.test(CONFIG.sodaiUrl||"")?CONFIG.sodaiUrl:"", tel=(CONFIG.sodaiPhone||"").trim();
+  const info=/^https:\/\//.test(CONFIG.officialUrl||"")?CONFIG.officialUrl:"";
+  const btns=[
+    url ? `<a class="calbtn" href="${esc(url)}" target="_blank" rel="noopener" data-sodai="apply">${esc(T().sodaiApply)} ↗</a>` : "",
+    tel ? `<a class="rghost" href="tel:${esc(tel.replace(/[^0-9+]/g,""))}" data-sodai="phone">${ic("phone")} ${esc(T().sodaiCall)}（${esc(tel)}）</a>` : "",
+    (!url && !tel && info) ? `<a class="rghost" href="${esc(info)}" target="_blank" rel="noopener" data-sodai="info">${esc(T().sodaiInfo)} ↗</a>` : "",
+  ].join("");
+  $("#sodaiCard").innerHTML = `<h2>${esc(T().sodaiH)}</h2>
+    <ol class="steps">
+      <li><span class="no">1</span><div>${esc(T().sodai1)}<div class="rbtns"><button class="rghost" data-sodai="reuse">${ic("recycle")} ${esc(T().sodaiReuse)}</button></div></div></li>
+      <li><span class="no">2</span><div>${esc(T().sodai2)}${btns?`<div class="rbtns">${btns}</div>`:""}${CONFIG.sodaiNote?`<div class="placenote">${esc(CONFIG.sodaiNote)}</div>`:""}</div></li>
+    </ol>`;
+}
+$("#sodaiCard").addEventListener("click", e=>{
+  const b=e.target.closest("[data-sodai]"); if(!b) return;
+  track("sodai", b.dataset.sodai);
+  if(b.dataset.sodai==="reuse") $("#tabR").click();
+});
+
+// ===== 前日20時の通知（Web Push）=====
+// サーバーには「送り先と地区」だけを預ける。表示する文は端末に保存した収集日から作る（sw.js）。
+const PUSH_OK = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && !!window.GOMI_API;
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+const STANDALONE = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+const b64uToU8 = s => { s=s.replace(/-/g,"+").replace(/_/g,"/"); s+= "===".slice((s.length+3)%4); return Uint8Array.from(atob(s), c=>c.charCodeAt(0)); };
+async function swReg(){ if(!("serviceWorker" in navigator)) return null; try{ return await navigator.serviceWorker.getRegistration(); }catch(e){ return null; } }
+async function getSub(){ const r=await swReg(); return r && r.pushManager ? r.pushManager.getSubscription() : null; }
+const pushMsg = t => { const m=$("#pushMsg"); if(m) m.textContent=t||""; };
+async function api(path, body){
+  const r=await fetch(window.GOMI_API+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error(String(r.status)); return r.json().catch(()=>({}));
+}
+function curDistrict(){ return DISTRICTS.find(x=>x.id===sel.value) || DISTRICTS[0]; }
+async function pushSave(sub){
+  const d=curDistrict();
+  await api("/api/push/subscribe",{city:CONFIG.cityId, district:d.id, lang:LANG, endpoint:sub.endpoint});
+  localStorage.setItem("pushSaved", [CONFIG.cityId,d.id,LANG].join("|"));
+}
+async function pushEnable(){
+  pushMsg("");
+  try{
+    if(Notification.permission==="denied") return pushMsg(T().pushDenied);
+    const perm=await Notification.requestPermission();
+    if(perm!=="granted") return pushMsg(T().pushDenied);
+    const reg=await swReg(); if(!reg) throw new Error("sw");
+    const {key}=await (await fetch(window.GOMI_API+"/api/push/key")).json();
+    const sub=(await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64uToU8(key)});
+    saveNotifySettings(curDistrict());
+    await pushSave(sub);
+    track("push","on"); markWelcome("w2");
+  }catch(e){ pushMsg(T().pushErr); }
+  renderPush();
+}
+async function pushDisable(){
+  try{
+    const sub=await getSub();
+    if(sub){ await api("/api/push/unsubscribe",{endpoint:sub.endpoint}).catch(()=>{}); await sub.unsubscribe(); }
+    localStorage.removeItem("pushSaved"); track("push","off");
+  }catch(e){}
+  renderPush();
+}
+async function renderPush(){
+  const box=$("#pushBox");
+  if(!PUSH_OK){ box.innerHTML = (IS_IOS && !STANDALONE && window.GOMI_API) ? `<div class="placenote" style="margin-top:12px">${ic("bell")} ${esc(T().pushIos)}</div>` : ""; return; }
+  const sub=await getSub().catch(()=>null);
+  box.innerHTML = sub
+    ? `<div class="pushon">${ic("bell")}<span>${esc(T().pushIsOn)}</span></div>
+       <div class="linkbtns"><button class="linkbtn" id="pushTest">${esc(T().pushTest)}</button><button class="linkbtn" id="pushOff">${esc(T().pushOff)}</button></div>
+       <div class="placenote" id="pushMsg"></div>`
+    : `<button class="calbtn" id="pushOn">${ic("bell")} ${esc(T().pushOn)}</button><div class="placenote" id="pushMsg"></div>`;
+  const on=$("#pushOn"), off=$("#pushOff"), test=$("#pushTest");
+  if(on) on.onclick=pushEnable;
+  if(off) off.onclick=pushDisable;
+  if(test) test.onclick=async()=>{ try{ const s=await getSub(); await api("/api/push/test",{endpoint:s.endpoint}); pushMsg(T().pushTestSent); }catch(e){ pushMsg(T().pushErr); } };
+}
+// 地区や言語を変えたら、登録先の地区も更新
+let syncTimer=null;
+function syncPush(d){
+  if(!PUSH_OK) return;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(async()=>{
+    const sub=await getSub().catch(()=>null); if(!sub) return;
+    if(localStorage.getItem("pushSaved")===[CONFIG.cityId,d.id,LANG].join("|")) return;
+    pushSave(sub).catch(()=>{});
+  }, 800);
+}
+// 通知を表示するときに sw.js が読む情報（地区の収集日・区分名・文言）
+function saveNotifySettings(d){
+  if(!("caches" in window) || !d) return;
+  const cats={}; Object.keys(d.schedule).forEach(k=>{ cats[k]=catName(k); });
+  const data={ title:`${CONFIG.cityShort} ${d.name}`, schedule:d.schedule, cats,
+    msg:tt(T().pushMsg), none:T().pushNone, url:location.pathname+"?city="+encodeURIComponent(CONFIG.cityId) };
+  caches.open("gomi-settings").then(c=>c.put("./__notify", new Response(JSON.stringify(data),{headers:{"Content-Type":"application/json"}}))).catch(()=>{});
+}
+
+// ===== 転入者向けの入口（?welcome=1。市役所で配るQRコードから来る）=====
+const WELCOME = new URLSearchParams(location.search).get("welcome")==="1";
+if(WELCOME){ track("ref","welcome"); if(localStorage.getItem("welcomeDone")!=="1") localStorage.removeItem("welcomeSteps"); }
+function welcomeSteps(){ try{ return JSON.parse(localStorage.getItem("welcomeSteps")||"{}"); }catch(e){ return {}; } }
+function markWelcome(k){ const s=welcomeSteps(); if(s[k]) return; s[k]=1; localStorage.setItem("welcomeSteps",JSON.stringify(s)); renderWelcome(); }
+function renderWelcome(){
+  const box=$("#welcome");
+  if(!WELCOME || localStorage.getItem("welcomeDone")==="1"){ box.hidden=true; return; }
+  const st=welcomeSteps();
+  const step=(k,n,label)=>`<li class="${st[k]?"ok":""}"><span class="no">${st[k]?ic("check"):n}</span><div><button class="wstep" data-w="${k}">${esc(label)}</button></div></li>`;
+  box.hidden=false;
+  box.innerHTML=`<div class="wh">${esc(T().welcomeH.replace("{c}",CONFIG.cityShort))}</div>
+    <p class="rlead" style="margin:4px 0 4px">${esc(T().welcomeLead)}</p>
+    <ol class="steps">${step("w1",1,T().welcome1)}${step("w2",2,PUSH_OK?T().welcome2:T().calShort)}${step("w3",3,T().welcome3)}</ol>
+    <button class="calbtn" id="welcomeDone">${esc(T().welcomeDone)}</button>`;
+}
+$("#welcome").addEventListener("click", e=>{
+  const b=e.target.closest("[data-w]");
+  if(b){
+    if(b.dataset.w==="w1"){ setPanel(true); dpanel.scrollIntoView({block:"center"}); }
+    if(b.dataset.w==="w2"){ if(PUSH_OK) pushEnable(); else $("#calBtn").click(); }
+    if(b.dataset.w==="w3"){ markWelcome("w3"); $("#tabG").click(); }
+    return;
+  }
+  if(e.target.closest("#welcomeDone")){ localStorage.setItem("welcomeDone","1"); renderWelcome(); window.scrollTo(0,0); }
+});
+
 search.addEventListener("input", ()=>{ const f=buildOptions(search.value); if(f){sel.value=f; render();} });
-sel.addEventListener("change", ()=>{ render(); $("#dHint").hidden=true; setPanel(false); });
+sel.addEventListener("change", ()=>{ render(); $("#dHint").hidden=true; setPanel(false); markWelcome("w1"); });
 
 applyLang();
 if(!sel.value && DISTRICTS[0]) sel.value=DISTRICTS[0].id;
 render();
 // 初回は地区選びから
 if(firstRun){ $("#dHint").hidden=false; setPanel(true); }
+
+// 管理画面で直した収集日などを取りにいく（新しい版があれば描き直す）
+window.onCityUpdate = () => { applyBrand(); applyLang(); render(); };
+if (typeof refreshCity === "function") refreshCity();
 
 // 利用者数の目安：1端末1日1回だけ「開いた」を数える（地区は選んだ人だけ）
 (function countOpen(){

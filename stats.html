@@ -159,6 +159,9 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=n=>Number(n||0).toLocaleString("ja-JP");
+// 市は ?city= で指定（管理画面から開くと付く）。無ければ同梱の市
+const SQ=new URLSearchParams(location.search);
+const CITY=/^[a-z0-9-]{2,20}$/.test(SQ.get("city")||"")?SQ.get("city"):CONFIG.cityId;
 document.documentElement.style.setProperty("--brand",CONFIG.brandColor);
 $("#title").textContent=`${CONFIG.cityShort} ごみアプリ 効果ダッシュボード`;
 const LANGS={ja:"日本語",en:"English",pt:"Português",easy:"やさしい日本語"};
@@ -181,10 +184,13 @@ async function load(){
   sessionStorage.setItem("m_api",api); sessionStorage.setItem("m_token",tok);
   $("#msg").textContent="読み込み中…";
   try{
-    const r=await fetch(`${api}/api/admin/stats?city=${encodeURIComponent(CONFIG.cityId)}&days=${$("#days").value}`,{headers:{Authorization:"Bearer "+tok}});
+    const r=await fetch(`${api}/api/admin/stats?city=${encodeURIComponent(CITY)}&days=${$("#days").value}`,{headers:{Authorization:"Bearer "+tok}});
     const b=await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(r.status===401?"管理トークンが違います":(b.message||"エラー "+r.status));
     $("#demoBanner").style.display="none";
+    try{ const c=(await (await fetch(`${api}/api/city/${encodeURIComponent(CITY)}`)).json()).config;
+      if(c){ CONFIG.cityName=c.cityName; CONFIG.cityShort=c.cityShort; document.documentElement.style.setProperty("--brand",c.brandColor);
+        $("#title").textContent=`${c.cityShort} ごみアプリ 効果ダッシュボード`; } }catch(e){}
     show(b); $("#msg").textContent=`${b.from} 〜 ${b.to} を表示`;
   }catch(e){ $("#msg").textContent="⚠ "+e.message; }
 }
@@ -261,11 +267,14 @@ function show(d){
     kpi("アプリの利用（延べ）",num(t.open),"回",`1日平均 ${num(Math.round((t.open||0)/d.days))}台`)+
     kpi("分別を調べた回数",num(look),"回",`辞典 ${num(hit+miss)}・写真 ${num(ph)}`)+
     kpi("辞典で解決",hit+miss?Math.round(hit/(hit+miss)*100):"–","%",`見つからず ${num(miss)}回`)+
-    kpi("カレンダー登録",num(t.ics),"件","前日20時の通知を設定した数")+
+    kpi("前日通知の登録",num(d.push_subs),"人","今、通知を受け取っている端末")+
+    kpi("カレンダー登録",num(t.ics),"件","端末のカレンダーに予定を入れた数")+
     kpi("写真判定で分かった",ph?Math.round(phHit/ph*100):"–","%",`${num(ph)}回中 ${num(phHit)}回`)+
     kpi("外国語・やさしい日本語",t.open?Math.round(((t.open||0)-(((top.open||[]).find(x=>x[0]==="ja")||[0,0])[1]))/t.open*100):"–","%","日本語以外で使われた割合")+
     kpi("譲渡成立（リユース）",num(r.C),"件")+
-    kpi("減らせたごみ（目安）",num(Math.round(r.KGs)),"kg",`処理費 約${num(r.yen)}円分`);
+    kpi("減らせたごみ（目安）",num(Math.round(r.KGs)),"kg",`処理費 約${num(r.yen)}円分`)+
+    kpi("転入者QRから",num(t.ref),"回","窓口で配ったQRコードから開いた数")+
+    kpi("粗大ごみ→ゆずります",num(((top.sodai||[]).find(x=>x[0]==="reuse")||[0,0])[1]),"回",`申し込み案内 ${num((t.sodai||0)-(((top.sodai||[]).find(x=>x[0]==="reuse")||[0,0])[1]))}回`);
   seriesChart(d);
   hbars("#topHit",(top.dict_hit||[]).slice(0,10));
   renderMiss();
@@ -321,7 +330,9 @@ function demoData(days){
   const m=days/30, R=(st,c,n)=>({status:st,category:c,n:Math.max(0,Math.round(n*m))});
   const rows=[R("closed","furniture",9),R("approved","furniture",3),R("closed","kids",11),R("approved","kids",4),R("closed","appliance",5),R("approved","appliance",2),
     R("closed","clothes",6),R("closed","daily",7),R("approved","daily",3),R("closed","hobby",4),R("closed","other",2),R("rejected","other",3),R("pending","daily",1)];
-  return {city:CONFIG.cityId,days,from,to,totals,top,series,reuse:{rows,threads:Math.round(71*m)}};
+  top.ref=[["welcome",Math.round(days*3.2)]]; top.sodai=[["reuse",Math.round(days*4.1)],["apply",Math.round(days*2.6)],["phone",Math.round(days*.8)]];
+  totals.ref=top.ref[0][1]; totals.sodai=top.sodai.reduce((a,r)=>a+r[1],0);
+  return {city:CITY,days,from,to,totals,top,series,reuse:{rows,threads:Math.round(71*m)},push_subs:Math.round(open/days*1.9)};
 }
 
 // ---- CSV ----

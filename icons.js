@@ -23,6 +23,7 @@ const ICON_PATHS = {
   leaf:    '<path d="M5 21c.5-6 4-11 15-17-1 10-6 14-11 14-1.5 0-3-.5-4-1M5 21l7-8"/>',
   chev:    '<path d="M9 6l6 6-6 6"/>',
   check:   '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  cal:     '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
 };
 const EMOJI_ICON = { "🔥":"flame", "♳":"bottle", "♻️":"recycle", "♻":"recycle", "🔩":"nut", "🪨":"bowl",
   "🗑️":"trash", "🗑":"trash", "📦":"box", "📞":"phone", "⚠️":"alert", "🛋️":"sofa", "📺":"tv" };

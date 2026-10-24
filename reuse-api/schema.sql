@@ -65,3 +65,82 @@ CREATE TABLE IF NOT EXISTS ev_rate (
   n       INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (day, ip_hash)
 );
+
+-- ===== 市のデータ（管理画面で編集 → アプリが起動時に読む）=====
+CREATE TABLE IF NOT EXISTS cities (
+  id         TEXT PRIMARY KEY,           -- toyota / chiryu
+  config     TEXT NOT NULL,              -- JSON: 市名・色・URL・収集時刻・粗大ごみ案内
+  categories TEXT NOT NULL,              -- JSON: {key:{name,color,icon,names:{ja,en,pt,easy}}}
+  version    INTEGER NOT NULL DEFAULT 1, -- 編集のたびに+1（アプリの再読込の目印）
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS districts (
+  city       TEXT NOT NULL,
+  id         TEXT NOT NULL,
+  area       TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  schedule   TEXT NOT NULL,              -- JSON: {cat:{weekly:[..]}|{monthly:{week|weeks,day}}|{text}}
+  verified   INTEGER NOT NULL DEFAULT 1,
+  sort       INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (city, id)
+);
+
+-- ===== 職員ログイン（パスワードは持たない。ログイン用のカギのハッシュだけ）=====
+CREATE TABLE IF NOT EXISTS staff (
+  id             TEXT PRIMARY KEY,
+  city           TEXT NOT NULL,
+  login_id       TEXT NOT NULL UNIQUE,
+  name           TEXT NOT NULL,
+  role           TEXT NOT NULL DEFAULT 'editor',   -- editor / admin
+  key_hash       TEXT,
+  invite_hash    TEXT,
+  invite_expires INTEGER,
+  disabled       INTEGER NOT NULL DEFAULT 0,
+  created_at     INTEGER NOT NULL,
+  last_login     INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_staff_invite ON staff(invite_hash);
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY,
+  staff_id   TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_fail (
+  ip_hash    TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_fail ON auth_fail(ip_hash, created_at);
+-- 変更履歴（誰が・いつ・何を）
+CREATE TABLE IF NOT EXISTS audit (
+  id         TEXT PRIMARY KEY,
+  city       TEXT NOT NULL,
+  staff_id   TEXT NOT NULL,
+  staff_name TEXT NOT NULL,
+  action     TEXT NOT NULL,
+  target     TEXT NOT NULL DEFAULT '',
+  detail     TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_city ON audit(city, created_at);
+
+-- ===== 前日通知（Web Push）。持つのは送り先と地区だけ =====
+CREATE TABLE IF NOT EXISTS push_subs (
+  id         TEXT PRIMARY KEY,           -- 送り先URLのSHA-256
+  city       TEXT NOT NULL,
+  district   TEXT NOT NULL,
+  lang       TEXT NOT NULL,
+  endpoint   TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  fail_count INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS push_runs (
+  day        TEXT PRIMARY KEY,           -- 通知する収集日（JST）
+  cursor     TEXT NOT NULL DEFAULT '',
+  done       INTEGER NOT NULL DEFAULT 0,
+  sent       INTEGER NOT NULL DEFAULT 0,
+  failed     INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
