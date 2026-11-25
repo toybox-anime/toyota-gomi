@@ -1,0 +1,5 @@
+# GitHub Pages（Jekyll）の設定。サイトに関係ないフォルダを公開しない。
+# ここに書いたものは、GitHub 上では読めるが、公開サイトには出ない。
+# reuse-api/ は Cloudflare Worker のソース（サイトからは Worker のURLを呼ぶので、Pages には要らない）
+exclude:
+  - reuse-api/
